@@ -4,10 +4,13 @@ import sys
 import os
 import ply.lex as lex
 import re
+import csv
+from yattag import Doc, indent
+
 #parsing arguments
 parser = argparse.ArgumentParser(description='Configuration and Output filename')
 
-parser.add_argument('--cfg', type=str, default='tests/cfg1/1.cfg',
+parser.add_argument('--cfg', type=str, default='../tests/cfg1/1.cfg',
                     help='Path to seen data file')
 parser.add_argument('--out', type=str, default=None,
                     help='Output html filename')
@@ -71,10 +74,10 @@ reserved = {
 
 operators = ['ADD', 'SUB', 'MUL', 'QUO', 'REM', 'AND', 'OR', 'XOR', 'SHL', 'SHR', 'AND_NOT', 'ADD_ASSIGN', 'SUB_ASSIGN', 'MUL_ASSIGN', 'QUO_ASSIGN', 'REM_ASSIGN', 'AND_ASSIGN', 'OR_ASSIGN', 'XOR_ASSIGN', 'SHL_ASSIGN', 'SHR_ASSIGN', 'AND_NOT_ASSIGN', 'LAND', 'LOR', 'ARROW', 'INC', 'DEC', 'EQL', 'LSS', 'GTR', 'ASSIGN', 'NOT', 'NEQ', 'LEQ', 'GEQ', 'DEFINE', 'ELLIPSIS', 'LPAREN', 'LBRACK', 'LBRACE', 'COMMA', 'PERIOD', 'RPAREN', 'RBRACK', 'RBRACE', 'SEMICOLON', 'COLON']
 
-literals_ = ['IDENT', 'DECIMAL_LIT', 'OCTAL_LIT', 'HEX_LIT', 'FLOAT_LIT', 'RAW_STRING', 'INTER_STRING']
+literals_ = ['IDENT', 'DECIMAL_LIT', 'OCTAL_LIT', 'HEX_LIT', 'FLOAT_LIT', 'TICK_STRING', 'QUOTE_STRING']
 
 #special_tokens = ['ILLEGAL', 'EOF', 'COMMENT']
-special_tokens = ['COMMENT']
+special_tokens = ['ILLEGAL', 'COMMENT']
 
 tokens = special_tokens + literals_ + operators + list(reserved.values())
 
@@ -150,19 +153,20 @@ def t_FLOAT_LIT(t):
         t.type = 'DECIMAL_LIT'
         return t
     elif re.match(r'^0[0-9]+$', t.value):
-        print("here2")
-        return t_error(t)
+        t.type = 'ILLEGAL'
+        return t
     else:
         return t
 
-def t_RAW_STRING(t):
+def t_TICK_STRING(t):
     r'\`([^`])*\`'
     return t
 
-def t_INTER_STRING(t):
+def t_QUOTE_STRING(t):
     r'\"([^\"])*\"'
     if '\n' in t.value:
-        return t_error(t)
+        t.type = 'ILLEGAL'
+        return t
     return t
 
 def t_COMMENT(t):
@@ -185,24 +189,70 @@ t_ignore  = ' \t'
 # Build the lexer
 lexer = lex.lex()
 
-data = """
-package main;
+# data = """
+# package main;
 
-import "fmt";
+# import "fmt";
 
-func main() {
-        fmt.Println("Hello,
-        wow");
-}
+# func main() {
+#         fmt.Println("Hello,
+#         wow");
+# }
 
-"""
+# """
+f = open(infile)
+data = f.read()
+f.close()
+
 # Give the lexer some input
 lexer.input(data)
-print(data)
-# Tokenize
-while True:
-    tok = lexer.token()
-    if not tok:
-        break      # No more input
-    print(tok)
+# print(data)
+
+
+# HTML Generator
+
+config = dict([(r[0],r[1]) for r in csv.reader(open(args.cfg), delimiter=',')])
+
+whitespace = '&nbsp;'
+cum_length = 0          # cumuative length of program as string
+prev_line_no = 1
+
+
+doc, tag, text = Doc().tagtext()
+with tag('html'):
+    with tag('body'):
+        with tag('div', style = 'display: flex;'):
+            with tag('div', style = 'flex: 50%;'):
+                with tag('span', klass = 'code'):
+                    while True:
+                        tok = lexer.token()
+                        if not tok:
+                            break
+                        with tag('span', style = 'color: ' + config[tok.type]):
+                            for i in range(tok.lineno - prev_line_no):
+                                doc.stag('br')
+                            for i in range(tok.lexpos - cum_length - (tok.lineno - prev_line_no)):
+                                doc.asis('&nbsp;')
+                            tok.value = tok.value.replace('\n', '<br>')
+                            tok.value = tok.value.replace(' ', '&nbsp;')
+                            doc.asis(tok.value)
+                        prev_line_no = tok.lineno
+                        cum_length = tok.lexpos + len(tok.value)
+            with tag('div', style = 'flex: 50%;'): 
+                with tag('table'):
+                    with tag('tr'):
+                        with tag('th'):
+                            text('TOKEN')
+                        with tag('th'):
+                            text('COLOR')
+                    for i in config:
+                        with tag('tr'):
+                            with tag('td'):
+                                text(i)
+                            with tag('td'):
+                                doc.attr(bgcolor = config[i])
+f = open(args.out, 'w+')
+f.write(indent(doc.getvalue()))
+f.close()
+
 
