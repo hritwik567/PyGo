@@ -72,7 +72,7 @@ reserved = {
         'uintptr':      'UINTPTR'
 }
 
-operators = ['ADD', 'SUB', 'MUL', 'QUO', 'REM', 'AND', 'OR', 'XOR', 'SHL', 'SHR', 'AND_NOT', 'ADD_ASSIGN', 'SUB_ASSIGN', 'MUL_ASSIGN', 'QUO_ASSIGN', 'REM_ASSIGN', 'AND_ASSIGN', 'OR_ASSIGN', 'XOR_ASSIGN', 'SHL_ASSIGN', 'SHR_ASSIGN', 'AND_NOT_ASSIGN', 'LAND', 'LOR', 'ARROW', 'INC', 'DEC', 'EQL', 'LSS', 'GTR', 'ASSIGN', 'NOT', 'NEQ', 'LEQ', 'GEQ', 'DEFINE', 'ELLIPSIS', 'LPAREN', 'LBRACK', 'LBRACE', 'COMMA', 'PERIOD', 'RPAREN', 'RBRACK', 'RBRACE', 'SEMICOLON', 'COLON']
+operators = ['ADD', 'SUB', 'MUL', 'QUO', 'REM', 'AND', 'OR', 'XOR', 'SHL', 'SHR', 'AND_NOT', 'ADD_ASSIGN', 'SUB_ASSIGN', 'MUL_ASSIGN', 'QUO_ASSIGN', 'REM_ASSIGN', 'AND_ASSIGN', 'OR_ASSIGN', 'XOR_ASSIGN', 'SHL_ASSIGN', 'SHR_ASSIGN', 'AND_NOT_ASSIGN', 'LAND', 'LOR', 'ARROW', 'INC', 'DEC', 'EQL', 'LSS', 'GTR', 'ASSIGN', 'NOT', 'NEQ', 'LEQ', 'GEQ', 'DEFINE', 'ELLIPSIS', 'LPAREN', 'LBRACK', 'LBRACE', 'COMMA', 'PERIOD', 'RPAREN', 'RBRACK', 'RBRACE', 'SEMICOLON', 'COLON', 'FOR_COMP']
 
 literals_ = ['IDENT', 'DECIMAL_LIT', 'OCTAL_LIT', 'HEX_LIT', 'FLOAT_LIT', 'TICK_STRING', 'QUOTE_STRING']
 
@@ -136,6 +136,10 @@ t_RBRACK = r'\]'
 t_RBRACE = r'\}'
 t_SEMICOLON = r';'
 t_COLON = r'\:'
+
+def t_FOR_COMP(t):
+    r'\|\|\|'
+    return t
 
 def t_IDENT(t):
     r'[a-zA-Z_][a-zA-Z_0-9]*'
@@ -238,7 +242,7 @@ with tag('html'):
                             doc.asis(tok.value)
                         prev_line_no = tok.lineno
                         cum_length = tok.lexpos + len(tok.value)
-            with tag('div', style = 'flex: 50%;'): 
+            with tag('div', style = 'flex: 50%;'):
                 with tag('table'):
                     with tag('tr'):
                         with tag('th'):
