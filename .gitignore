@@ -3,3 +3,4 @@
 *.log
 *.aux
 _minted*
+__pycache__
