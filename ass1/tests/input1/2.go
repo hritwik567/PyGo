@@ -3,9 +3,9 @@ package main;
 import "fmt";
 
 func main() {
-	fmt.Println("vim-go");
+	fmt.Println("vim-go ``\"\" ''");
 	/*
-		Hritvik here asshole
+		I am a comment
 	*/
-	// Hritvik
+	// I am also a comment
 }

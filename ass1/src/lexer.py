@@ -12,17 +12,18 @@ parser = argparse.ArgumentParser(description='Configuration and Output filename'
 
 parser.add_argument('--cfg', type=str, default='../tests/cfg1/1.cfg',
                     help='Path to seen data file')
-parser.add_argument('--out', type=str, default=None,
+parser.add_argument('--output', type=str, default=None,
                     help='Output html filename')
 args, infile = parser.parse_known_args()
+
 
 if len(infile)!=1:
     print('usage: provide 1 input file')
 
 infile = infile[0]
 
-if args.out == None:
-    args.out = os.path.basename(infile).split('.')[0] + '.html'
+if args.output == None:
+    args.output = os.path.basename(infile).split('.')[0] + '.html'
 
 reserved = {
         'break': 	'BREAK',
@@ -255,8 +256,6 @@ with tag('html'):
                                 text(i)
                             with tag('td'):
                                 doc.attr(bgcolor = config[i])
-f = open(args.out, 'w+')
+f = open(args.output, 'w+')
 f.write(indent(doc.getvalue()))
 f.close()
-
-
