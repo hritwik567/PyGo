@@ -168,7 +168,7 @@ def t_TICK_STRING(t):
     return t
 
 def t_QUOTE_STRING(t):
-    r'\"([^\"])*\"'
+    r'\"[^\"\\]*(?:\\.[^\"\\]*)*\"'
     if '\n' in t.value:
         t.type = 'ILLEGAL'
         return t
@@ -194,28 +194,14 @@ t_ignore  = ' \t'
 # Build the lexer
 lexer = lex.lex()
 
-# data = """
-# package main;
-
-# import "fmt";
-
-# func main() {
-#         fmt.Println("Hello,
-#         wow");
-# }
-
-# """
 f = open(infile)
 data = f.read()
 f.close()
 
 # Give the lexer some input
 lexer.input(data)
-# print(data)
-
 
 # HTML Generator
-
 config = dict([(r[0],r[1]) for r in csv.reader(open(args.cfg), delimiter=',')])
 
 whitespace = '&nbsp;'
@@ -238,9 +224,13 @@ with tag('html'):
                                 doc.stag('br')
                             for i in range(tok.lexpos - cum_length - (tok.lineno - prev_line_no)):
                                 doc.asis('&nbsp;')
-                            tok.value = tok.value.replace('\n', '<br>')
-                            tok.value = tok.value.replace(' ', '&nbsp;')
-                            doc.asis(tok.value)
+                            for i in tok.value:
+                                if i == '\n':
+                                    doc.stag('br')
+                                elif i == ' ':
+                                    doc.asis('&nbsp;')
+                                else:
+                                    text(i)
                         prev_line_no = tok.lineno
                         cum_length = tok.lexpos + len(tok.value)
             with tag('div', style = 'flex: 50%;'):

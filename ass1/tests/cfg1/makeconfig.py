@@ -7,5 +7,5 @@ tokens = ['ILLEGAL', 'COMMENT', 'IDENT', 'DECIMAL_LIT', 'OCTAL_LIT', 'HEX_LIT', 
 f = open(sys.argv[1] + '.cfg', 'w+')
 cw = csv.writer(f, delimiter=',')
 for i in tokens:
-    cw.writerow([i]+['#%2x%2x%2x'%(random.randint(127,255), random.randint(127,255), random.randint(127,255))])
+    cw.writerow([i]+['#%2x%2x%2x'%(random.randint(0,127), random.randint(0,127), random.randint(0,127))])
 f.close()

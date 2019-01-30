@@ -8,6 +8,7 @@ func main() {
 course := "compiler"
 
 fmt.Printf("This is for a %s\n", course)
+fmt.Printf(`This "is" for a \n`);
 
 var sum int = 0
 
@@ -20,7 +21,5 @@ if sum < 8 {
 } else {
 	sum %= 2
 }
-
-var c rune = 'a'
 
 }
