@@ -14,7 +14,7 @@ type tester interface {
 const five = 5
 
 func main() {
-	var a = 'a'
+	var a = "a"
 	var b int = 0
 	myMap := map[string]int[(
 		"a": 5,
