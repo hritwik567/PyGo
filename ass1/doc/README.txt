@@ -1,9 +1,13 @@
-First install all the packages listed in src/requirements.txt by running
+Follow the following steps for running the lexer:
 
-pip install -r src/requirements.txt
+-> First go to the src folder.
 
+-> Run the following command to install the lexer package.
 
+    $ pip install -r requirements.txt
 
-Then run by using
+-> Come out of the src folder in the root directory (i.e. inside cs335_160117 directory)
 
-python src/lexer.py --cfg=tests/cfg1/some-cfg tests/input1/some-input --output=some.html
+-> Run the following command to actually run the installed lexer.
+    
+    $ lexer --cfg=tests/cfg1/some-cfg tests/input1/some-input --output=some.html
