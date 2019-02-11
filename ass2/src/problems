@@ -1,0 +1,50 @@
+a, b := 5,4;              //
+semicolon made ocheck identifier_list vs IDENT before DEFINE token
+type conversion made explicit
+Brackets change
+expressionrep changed
+
+
+test case{
+  i := 2
+  c, d = 3, 4
+}
+
+test case{
+  i, y := 2, 3
+}
+
+We removed qualified_ident from type_name because of below test case
+Need carefully inspection
+test case{
+  if i >= 0 {
+    fmt.Printf("yes\n")
+  } else {
+    fmt.Printf("no\n")
+  }
+}
+
+rune not defined in tokens
+
+testcase
+  func f(x T) {
+  	x.a = "a"
+  	x.b = 47114711
+  	x.c = "c"
+  	x.d = 1234
+  	x.e = 3.141592897932
+  	x.f = "*"
+  	x.name = "abc"
+  }
+
+testcase
+  func main() {
+  	var k T;
+  	f(k)
+  }
+
+type vs operand_name
+
+selector
+
+function body call function without p_assignment
