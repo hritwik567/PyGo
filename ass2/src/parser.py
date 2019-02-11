@@ -296,6 +296,8 @@ def p_expr_list_assign_opt(p):
 
 def p_short_val_decl(p):
     '''short_val_decl   : IDENT DEFINE expression_list'''
+    # '''short_val_decl   : identifier_list DEFINE expression_list'''
+    # Arpit: mutiple identifiers can be defined
     p[0] = mytuple(["short_val_decl"] + p[1:])
 
 def p_function_decl(p):
@@ -639,8 +641,9 @@ def p_expr_switch_stmt(p):
     p[0] = mytuple(["expr_switch_stmt"] + p[1:])
 
 def p_simple_stmt_opt(p):
-    '''simple_stmt_opt  : simple_stmt semicolon_opt
+    '''simple_stmt_opt  : simple_stmt SEMICOLON
                         | epsilon'''
+    # Hritvikt can semicolon be optional
     p[0] = mytuple(["simple_stmt_opt"] + p[1:])
 
 def p_expr_case_clause_rep(p):
