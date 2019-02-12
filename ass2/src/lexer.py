@@ -45,7 +45,7 @@ def t_QUOTE_STRING(t):
 
 def t_COMMENT(t):
     r'(/\*([^*]|\n|(\*+([^*/]|\n)))*\*+/)|(//.*)'
-    return t
+    pass
 
 # Error handling rule
 def t_error(t):

@@ -56,7 +56,7 @@ testcase
 
 TODO
 1: check for precedence expressions
-2: Ignore comments
+2: Ignore comments                                    ---> COMPLETED
 3: check for define and assiment statements
 4: beautify the graph
 5: make package
