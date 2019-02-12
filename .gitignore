@@ -4,3 +4,4 @@
 *.aux
 _minted*
 __pycache__
+parsetab.py

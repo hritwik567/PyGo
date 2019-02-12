@@ -51,3 +51,10 @@ function body call function without p_assignment
 
 testcase
   a.b.c()
+
+TODO
+1: check for precedence expressions
+2: Ignore comments
+3: check for define and assiment statements
+4: beautify the graph
+5: make package

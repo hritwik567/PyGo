@@ -1,6 +1,9 @@
 import ply.yacc as yacc
 import sys
 import lexer
+from graphviz import Digraph
+import os
+
 tokens = lexer.tokens
 
 if len(sys.argv)!=2:
@@ -760,4 +763,29 @@ f = open(infile)
 data = f.read()
 f.close()
 
-print(parser.parse(data))
+output = parser.parse(data)
+
+def plot_ast(ouput):
+    ast = Digraph(comment='Abstract Syntax Tree')
+    node_i = 0
+
+    def process_node(data, parent):
+        if type(data) == str:
+            nonlocal node_i
+            node_i = node_i + 1
+            ast.node(str(node_i), data)
+            ast.edge(str(parent), str(node_i))
+            return
+
+        process_node(data[0], parent)
+        lparent = node_i
+        for i in data[1:]:
+            if type(i) == str:
+                process_node(i, lparent)
+            elif type(i) == tuple:
+                process_node(i, lparent)
+    process_node(output, 0)
+    ast.node(str(0), os.path.basename(infile))
+    ast.render('ast_' + os.path.basename(infile).replace('.', '_'), view=True)
+
+plot_ast(output)
