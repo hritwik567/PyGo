@@ -6,4 +6,7 @@ func foo() {
 
 func main() {
 	foo()
+	bar(a)
+	foobar(a, b)
+	fmt.ab.ac(a,b,c)
 }

@@ -48,3 +48,6 @@ type vs operand_name
 selector
 
 function body call function without p_assignment
+
+testcase
+  a.b.c()

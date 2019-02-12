@@ -83,15 +83,20 @@ def p_type_token(p):
                     | UINTPTR'''
     p[0] = mytuple(["type_token"] + p[1:])
 
+
+
 def p_type(p):
-    '''type : type_name
+    '''type : type_token
             | type_lit
-            | LPAREN type RPAREN'''
+            | TYPE IDENT'''
+    # check_shivansh
+    # Arpit LPAREN type RPAREN removed from RHS
     p[0] = mytuple(["type"] + p[1:])
 
 def p_type_name(p):
-    '''type_name    : qualified_ident
-                    | type_token'''
+    '''type_name    : IDENT'''
+    # check_shivansh
+    #Hritvik remove qualified_ident from type_name
     p[0] = mytuple(["type_name"] + p[1:])
 
 def p_type_lit(p):
@@ -185,7 +190,7 @@ def p_parameter_decl(p):
     p[0] = mytuple(["parameter_decl"] + p[1:])
 
 def p_identifier_list_opt(p):
-    '''identifier_list_opt  : identifier_list_opt
+    '''identifier_list_opt  : identifier_list
                             | epsilon'''
     p[0] = mytuple(["identifier_list_opt"] + p[1:])
 
@@ -333,6 +338,8 @@ def p_operand(p):
                 | operand_name
                 | method_expr
                 | LPAREN expression RPAREN'''
+    # check_shivansh
+    # method and LPAREN expression RPAREN should may be removed
     p[0] = mytuple(["operand"] + p[1:])
 
 def p_literal(p):
@@ -355,8 +362,7 @@ def p_int_lit(p):
     p[0] = mytuple(["int_lit"] + p[1:])
 
 def p_operand_name(p):
-    '''operand_name : qualified_ident
-                    | IDENT'''
+    '''operand_name : IDENT'''
     p[0] = mytuple(["operand_name"] + p[1:])
     print("--------------- operand name------------------")
 
@@ -415,18 +421,21 @@ def p_function_lit(p):
     print("function_lit")
     p[0] = mytuple(["function_lit"] + p[1:])
 
+
+# conversion deleted form the RHS of the primary expression
 def p_primary_expr(p):
     '''primary_expr : operand
-                    | conversion
                     | primary_expr selector
                     | primary_expr index
                     | primary_expr slice
-                    | primary_expr type_assertion
                     | primary_expr arguments'''
+    # check_shivansh
+    # slice may need to be removed from RHS
+    # typeassertion removed from RHS of above production
     p[0] = mytuple(["primary_expr"] + p[1:])
 
 def p_selector(p):
-    '''selector : IDENT'''
+    '''selector : PERIOD IDENT'''
     p[0] = mytuple(["selector"] + p[1:])
 
 def p_index(p):
@@ -446,6 +455,8 @@ def p_arguments(p):
     '''arguments    : LPAREN RPAREN
                     | LPAREN expression_list ellipsis_opt comma_opt RPAREN
                     | LPAREN type expr_list_comma_opt ellipsis_opt comma_opt RPAREN'''
+    # check_shivansh
+    # lst RHS may have to be removed
     p[0] = mytuple(["arguments"] + p[1:])
 
 def p_expr_list_comma_opt(p):
@@ -559,9 +570,9 @@ def p_block(p):
     print("--------------------------------p_block-----------------------------------")
     p[0] = mytuple(["block"] + p[1:])
 
-def p_conversion(p):
-    '''conversion   : type_token LPAREN expression comma_opt RPAREN'''
-    p[0] = mytuple(["conversion"] + p[1:])
+# def p_conversion(p):
+#     '''conversion   : type_token LPAREN expression comma_opt RPAREN'''
+#     p[0] = mytuple(["conversion"] + p[1:])
 
 def p_comma_opt(p):
     '''comma_opt    : COMMA
@@ -609,6 +620,7 @@ def p_inc_dec_stmt(p):
 
 def p_assignment(p):
     '''assignment   : expression_list assign_op expression_list'''
+    #Hritvik canges expression_list to identifier_list before assign_op
     p[0] = mytuple(["assignment"] + p[1:])
 
 def p_assign_op(p):
@@ -627,9 +639,9 @@ def p_assign_op(p):
     p[0] = mytuple(["assign_op"] + p[1:])
 
 def p_if_stmt(p):
-    '''if_stmt  : IF simple_stmt_opt expression block
-                | IF simple_stmt_opt expression block ELSE block
-                | IF simple_stmt_opt expression block ELSE if_stmt'''
+    '''if_stmt  : IF expression block
+                | IF expression block ELSE block
+                | IF expression block ELSE if_stmt'''
     p[0] = mytuple(["if_stmt"] + p[1:])
 
 def p_switch_stmt(p):
@@ -637,14 +649,8 @@ def p_switch_stmt(p):
     p[0] = mytuple(["switch_stmt"] + p[1:])
 
 def p_expr_switch_stmt(p):
-    '''expr_switch_stmt : SWITCH simple_stmt_opt expression_opt LBRACE expr_case_clause_rep RBRACE'''
+    '''expr_switch_stmt : SWITCH expression_opt LBRACE expr_case_clause_rep RBRACE'''
     p[0] = mytuple(["expr_switch_stmt"] + p[1:])
-
-def p_simple_stmt_opt(p):
-    '''simple_stmt_opt  : simple_stmt SEMICOLON
-                        | epsilon'''
-    # Hritvikt can semicolon be optional
-    p[0] = mytuple(["simple_stmt_opt"] + p[1:])
 
 def p_expr_case_clause_rep(p):
     '''expr_case_clause_rep : expr_case_clause_rep expr_case_clause
@@ -668,8 +674,14 @@ def p_for_stmt(p):
     p[0] = mytuple(["for_stmt"] + p[1:])
 
 def p_for_clause(p):
-    '''for_clause   : init_stmt semicolon_opt condition_opt semicolon_opt post_stmt'''
+    '''for_clause   : init_stmt post_init_stmt'''
     p[0] = mytuple(["for_clause"] + p[1:])
+
+def p_post_init_stmt(p):
+    '''post_init_stmt    : SEMICOLON condition_opt SEMICOLON post_stmt
+                    | epsilon'''
+    p[0] = mytuple(["post_ini_stmt"] + p[1:])
+
 
 def p_post_stmt(p):
     '''post_stmt    : simple_stmt

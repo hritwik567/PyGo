@@ -7,7 +7,7 @@ type T struct {
 	name [10]int
 }
 
-func f(x T) {
+func f(x type T) {
 	x.a = "a"
 	x.b = 47114711
 	x.c = "c"
@@ -18,6 +18,6 @@ func f(x T) {
 }
 
 func main() {
-	var k T;
+	var k type T;
 	f(k)
 }
