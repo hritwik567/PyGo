@@ -22,6 +22,7 @@ reserved = {
         'select': 	'SELECT',
         'struct': 	'STRUCT',
         'switch': 	'SWITCH',
+        'typecast': 'TYPECAST',
         'type': 	'TYPE',
         'var': 	 	'VAR',
         'nil':          'NIL',

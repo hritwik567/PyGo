@@ -1,30 +1,70 @@
-a, b := 5,4;              //
-semicolon made ocheck identifier_list vs IDENT before DEFINE token
-type conversion made explicit
-Brackets change
-expressionrep changed
+a, b := 5,4;                                         // changed to IDENT := EXPR
+check identifier_list vs IDENT before DEFINE token   // changed to IDENT := EXPR
+semicolon made optional                              // only compulsory in FOR
+type conversion made explicit                        // TYPECAST type_eoken ( EXPR )
 
+testcase "done"
+  {
+    int64(65.25)
+  }
 
-test case{
+type declaration, interface, struct                 // working correctly
+Brackets change                                     // correctly changed
+p_type_name, receiver_type, method
+
+testcase "done"
+  * uint(address)
+  var a *int64
+
+expressionrep changed                               // works fine
+
+recursive useless brackets should work like         // works fine
+{{{{{{fmt. Println("")}}}}}}, x = (((int64)(32.23)));
+
+test "done"
+{
   i := 2
   c, d = 3, 4
 }
 
 test case{
-  i, y := 2, 3
-}
+  i, y := 2, 3                                      // removed feature of multiple short_var_decl
+}                                                   // IDENT := EXPR
+
 
 We removed qualified_ident from type_name because of below test case
 Need carefully inspection
-test case{
-  if i >= 0 {
+test "done"
+{
+  if i >= 0 {                                       // works fine
     fmt.Printf("yes\n")
   } else {
     fmt.Printf("no\n")
   }
 }
 
+---------------------- UNSOLVED -----------------------
+
 rune not defined in tokens
+imaginary lit not in BNF
+
+x.a = 3 is interpreted as method expr instead of operand_name.p_selector
+This is because Primary expr can be of two types:
+  1. operand -> operand_name -> method_expr -> receiver_type.method_name
+  2. opernad -> opernad_name -> identifier
+
+1. is needed for expr -> primary_expr argument
+2. is needed for expr -> IDENT (normal e.g. y = x)
+If method_expr is always followed by arguments (mainly parenthesis e.g. fmt.print() )
+then it can be taken out from operand and put in primary_expr so that lookahead token
+decides whether to make it (depending whether it is parenthesis or not)
+  primary_expr -> operand.selector
+            OR
+  primary_expr -> method_expr arguments
+
+receiver_type shold be replaced by package_name
+  just the strings
+  nothing in productions
 
 testcase
   func f(x T) {
@@ -52,7 +92,7 @@ function body call function without p_assignment
 testcase
   a.b.c()
 
-
+check dangling if statements
 
 TODO
 1: check for precedence expressions
@@ -64,3 +104,4 @@ TODO
 7: clean all the repo + code
 8: Add non trivial test cases from prakhar repo, first run all and then submit
 9: Add new features to the parser such as "for comprehension"
+10: Commands to run the parser and dot should be same as what is mentioned on canvas

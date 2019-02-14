@@ -303,7 +303,7 @@ def p_expr_list_assign_opt(p):
     p[0] = mytuple(["expr_list_assign_opt"] + p[1:])
 
 def p_short_val_decl(p):
-    '''short_val_decl   : identifier_list DEFINE expression_list'''
+    '''short_val_decl   : IDENT DEFINE expression'''
     # '''short_val_decl   : identifier_list DEFINE expression_list'''
     # Arpit: mutiple identifiers can be defined
     p[0] = mytuple(["short_val_decl"] + p[1:])
@@ -428,6 +428,7 @@ def p_function_lit(p):
 # conversion deleted form the RHS of the primary expression
 def p_primary_expr(p):
     '''primary_expr : operand
+                    | conversion
                     | primary_expr selector
                     | primary_expr index
                     | primary_expr slice
@@ -573,9 +574,11 @@ def p_block(p):
     print("--------------------------------p_block-----------------------------------")
     p[0] = mytuple(["block"] + p[1:])
 
-# def p_conversion(p):
-#     '''conversion   : type_token LPAREN expression comma_opt RPAREN'''
-#     p[0] = mytuple(["conversion"] + p[1:])
+def p_conversion(p):
+    '''conversion   : TYPECAST type_token LPAREN expression RPAREN'''
+    # check prakhar TYPECAST is added
+    # check prakhar comma is removed
+    p[0] = mytuple(["conversion"] + p[1:])
 
 def p_comma_opt(p):
     '''comma_opt    : COMMA
