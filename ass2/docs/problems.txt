@@ -43,10 +43,6 @@ test "done"
   }
 }
 
----------------------- UNSOLVED -----------------------
-
-rune not defined in tokens
-imaginary lit not in BNF
 
 x.a = 3 is interpreted as method expr instead of operand_name.p_selector
 This is because Primary expr can be of two types:
@@ -63,10 +59,11 @@ decides whether to make it (depending whether it is parenthesis or not)
   primary_expr -> method_expr arguments
 
 receiver_type shold be replaced by package_name
+// cool can be done in codegen
   just the strings
   nothing in productions
 
-testcase
+testcase "done"
   func f(x T) {
   	x.a = "a"
   	x.b = 47114711
@@ -77,31 +74,27 @@ testcase
   	x.name = "abc"
   }
 
-testcase
+testcase "done"
   func main() {
   	var k T;
   	f(k)
   }
 
-type vs operand_name
+  check dangling if statements                          // works fine
 
-selector
-
-function body call function without p_assignment
-
-testcase
-  a.b.c()
-
-check dangling if statements
-
+---------------------- UNSOLVED -----------------------
 TODO
-1: check for precedence expressions
-2: Ignore comments                                    ---> COMPLETED
-3: check for define and assiment statements
-4: beautify the graph
-5: make package
+0: support for rune and imaginary literals
+1: check for precedence expressions                   // NOT WORKING
+8: make ast instead of parse tree                     // NOT WORKING
+10: Add new features to the parser such as "for comprehension"
+
+9: Add non trivial test cases from prakhar repo, first run all and then submit
+11: Commands to run the parser and dot should be same as what is mentioned on canvas
+
+7: clean all the repo + code; remove prints           // OPTIONAL / DONE
+4: beautify the graph                                 // OPTIONAL
+5: make package                                       // OPTIONAL
 6: check all problems mentioned in problems file
-7: clean all the repo + code
-8: Add non trivial test cases from prakhar repo, first run all and then submit
-9: Add new features to the parser such as "for comprehension"
-10: Commands to run the parser and dot should be same as what is mentioned on canvas
+3: check for define and assignment statements         ---> COMPLETED
+2: Ignore comments                                    ---> COMPLETED

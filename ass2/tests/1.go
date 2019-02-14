@@ -3,6 +3,7 @@ package main;
 import "fmt";
 
 // func f(x type T) {
+// 	variable = 5
 // 	x.a = "a"
 // 	x.b = 47114711
 // 	x.c = "c"
@@ -11,6 +12,7 @@ import "fmt";
 // 	x.f = "*"
 // 	x.name = "abc"
 // }
+
 
 
 func main() {
@@ -32,9 +34,12 @@ func main() {
   // }
 	// a := 3*4
 	// c,d = 4-6,5/7
-	a = foo(arg1)
-	b = bar(arg2, arg3)
-	c = fmt.foo(arg4)
-	d = fmt.bar(arg5, arg6)
+	// a = foo(arg1)
+	// b = g.h.bar(arg2, arg3)
+	// c = fmt.foo(arg4)
+	// d = f.g(h)
+	// d = fmt.bar(arg5, arg6)
+
+	val := 2+3*7/8+(4+5)+6-2*7+9
 
 }

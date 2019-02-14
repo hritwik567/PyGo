@@ -11,7 +11,7 @@ if len(sys.argv)!=2:
 
 infile = sys.argv[1]
 def mytuple(arr):
-    print(arr)
+    # print(arr)
     return tuple(arr)
 
 def p_empty(p):
@@ -96,6 +96,10 @@ def p_type(p):
     # Arpit LPAREN type RPAREN removed from RHS
     p[0] = mytuple(["type"] + p[1:])
 
+def p_operand_name(p):
+    '''operand_name : IDENT'''
+    p[0] = mytuple(["operand_name"] + p[1:])
+
 def p_type_name(p):
     '''type_name    : IDENT'''
     # check_shivansh
@@ -157,7 +161,6 @@ def p_base_type(p):
 
 def p_function_type(p):
     '''function_type    : FUNC signature'''
-    print("function_type")
     p[0] = mytuple(["function_type"] + p[1:])
 
 def p_signature(p):
@@ -311,7 +314,6 @@ def p_short_val_decl(p):
 def p_function_decl(p):
     '''function_decl    : FUNC function_name function
                         | FUNC function_name signature semicolon_opt'''
-    print("function_decl")
     p[0] = mytuple(["function_decl"] + p[1:])
 
 def p_function_name(p):
@@ -329,7 +331,6 @@ def p_function_body(p):
 def p_method_decl(p):
     '''method_decl  : FUNC receiver method_name function
                     | FUNC receiver method_name signature'''
-    print("method_decl")
     p[0] = mytuple(["method_decl"] + p[1:])
 
 def p_receiver(p):
@@ -339,9 +340,9 @@ def p_receiver(p):
 def p_operand(p):
     '''operand  : literal
                 | operand_name
-                | method_expr
                 | LPAREN expression RPAREN'''
     # check_shivansh
+    # method_expr removed from the RHS of production and added to primary_expr directly
     # method and LPAREN expression RPAREN should may be removed
     p[0] = mytuple(["operand"] + p[1:])
 
@@ -364,10 +365,6 @@ def p_int_lit(p):
                 | HEX_LIT'''
     p[0] = mytuple(["int_lit"] + p[1:])
 
-def p_operand_name(p):
-    '''operand_name : IDENT'''
-    p[0] = mytuple(["operand_name"] + p[1:])
-    print("--------------- operand name------------------")
 
 def p_qualified_ident(p):
     '''qualified_ident  : package_name PERIOD IDENT'''
@@ -421,7 +418,6 @@ def p_element(p):
 
 def p_function_lit(p):
     '''function_lit : FUNC function'''
-    print("function_lit")
     p[0] = mytuple(["function_lit"] + p[1:])
 
 
@@ -429,11 +425,17 @@ def p_function_lit(p):
 def p_primary_expr(p):
     '''primary_expr : operand
                     | conversion
+                    | method_expr arguments
                     | primary_expr selector
                     | primary_expr index
                     | primary_expr slice
                     | primary_expr arguments'''
     # check_shivansh
+    # | operand_selector
+    # | method_expr LPAREN arguments_for_method_expr RPAREN
+    # since we already have method_expr we can remove primary_expr arguments_for_method_expr
+    # but make sure of test cases : a.b.c(d,e)      x.a = b     foo(a,b)    etc.
+    # operand selector in RHS becomes redundant; never gets used
     # slice may need to be removed from RHS
     # typeassertion removed from RHS of above production
     p[0] = mytuple(["primary_expr"] + p[1:])
@@ -477,23 +479,22 @@ def p_method_expr(p):
     '''method_expr  : receiver_type PERIOD method_name'''
     p[0] = mytuple(["method_expr"] + p[1:])
 
+# ReceiverType  = TypeName | "(" "*" TypeName ")" | "(" ReceiverType ")" .
 def p_receiver_type(p):
-    '''receiver_type    : type_name
-                        | LPAREN MUL type_name RPAREN
-                        | LPAREN receiver_type RPAREN'''
+    '''receiver_type    : type_name'''
+    # Removed some RHS from production
+    # couldn't find any of its use
     p[0] = mytuple(["receiver_type"] + p[1:])
 
 def p_expression(p):
     '''expression   : unary_expr
                     | expression binary_op expression'''
     p[0] = mytuple(["expression"] + p[1:])
-    print("--------------- expression ------------------")
 
 def p_unary_expr(p):
     '''unary_expr   : primary_expr
                     | unary_op unary_expr'''
     p[0] = mytuple(["unary_expr"] + p[1:])
-    print("--------------- unary expression------------------")
 
 def p_binary_op(p):
     '''binary_op    : LAND
@@ -546,13 +547,11 @@ def p_expression_opt(p):
 def p_expression_list(p):
     '''expression_list  : expression expression_rep'''
     p[0] = mytuple(["expression_list"] + p[1:])
-    print("--------------- expression list ------------------")
 
 def p_expression_rep(p):
     '''expression_rep   : COMMA expression expression_rep
                         | epsilon'''
     p[0] = mytuple(["expression_rep"] + p[1:])
-    print("--------------- expression rep ------------------")
 
 def p_identifier_list(p):
     '''identifier_list  : identifier_list COMMA IDENT
@@ -561,7 +560,6 @@ def p_identifier_list(p):
 
 def p_statement_list(p):
     '''statement_list   : statement_rep'''
-    print("--------------------------------p_statement_list-----------------------------------")
     p[0] = mytuple(["statement_list"] + p[1:])
 
 def p_statement_rep(p):
@@ -571,7 +569,6 @@ def p_statement_rep(p):
 
 def p_block(p):
     '''block    : LBRACE statement_list RBRACE'''
-    print("--------------------------------p_block-----------------------------------")
     p[0] = mytuple(["block"] + p[1:])
 
 def p_conversion(p):
@@ -686,7 +683,7 @@ def p_for_clause(p):
 def p_post_init_stmt(p):
     '''post_init_stmt    : SEMICOLON condition_opt SEMICOLON post_stmt
                     | epsilon'''
-    p[0] = mytuple(["post_ini_stmt"] + p[1:])
+    p[0] = mytuple(["post_init_stmt"] + p[1:])
 
 
 def p_post_stmt(p):
