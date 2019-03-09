@@ -23,7 +23,7 @@ class SymbolTable():
         return self.table.get(name, None)
 
     def set_parent(self, parent):
-        sef.parent = parent;
+        self.parent = parent;
 
     def add_extra(self, value, key):
         self.extra[key] = value

@@ -3,15 +3,15 @@ import ply.yacc as yacc
 import sys
 import argparse
 import lexer
-from graphviz import Digraph
 import os
-
+from symbol_table import SymbolTable
+from node import Node
 tokens = lexer.tokens
 
 #parsing arguments
 parser = argparse.ArgumentParser(description = "Output filename")
 parser.add_argument("--out", type=str, default=None,
-                    help="Output html filename")
+                    help="Output IR filename")
 
 args, infile = parser.parse_known_args()
 
@@ -23,10 +23,60 @@ infile = infile[0]
 if args.out == None:
     args.out = os.path.basename(infile).split('.')[0] + ".ir"
 
+
+#-------------------SYMBOL TABLE STUFF-----------------------------
+scopes_ctr = 0
+scopes = [SymbolTable()]
+current_scope = 0
+scope_stack = [0]
+#------------------------------------------------------------------
+
+def in_scope(ident):
+    global scope_stack, scopes
+    for scope in scope_stack[::-1]:
+        if scopes[scope].look_up(ident):
+            return True
+    return False
+
+def add_scope():
+    global scope_stack, scopes, current_scope, scopes_ctr
+    scopes_ctr += 1
+    previous_scope = current_scope
+    current_scope = scopes_ctr
+    scope_stack += [current_scope]
+    scopes += [SymbolTable()]
+    scopes[current_scope].set_parent(previous_scope)
+
+def end_scope():
+    global scope_stack, current_scope
+    scope_stack.pop()
+    current_scope = scope_stack[-1]
+
+def find_scope(ident):
+    global scope_stack, scopes
+    for scope in scope_stack[::-1]:
+        if scopes[scope].look_up(ident):
+            return scope
+    raise NameError("Identifier " + ident + " is not in any scope")
+
+def find_info(ident, scope = None):
+    global scope_stack, scopes
+    if scope != None:
+        temp = scopes[scope].get_info(ident)
+        if temp != None:
+            return temp
+        raise NameError("Identifier " + ident + " is not in this scope")
+
+    for scope in scope_stack[::-1]:
+        if scopes[scope].look_up(ident):
+            return scopes[scope].get_info(ident)
+    raise NameError("Identifier " + ident + " is not in any scope")
+
+
 def mytuple(arr):
     return tuple(arr)
 
-def p_empty(p):
+def p_epsilon(p):
     '''epsilon : '''
     p[0] = "epsilon"
 
@@ -75,6 +125,21 @@ def p_source_file(p):
     p[0] = mytuple(["source_file"] + p[1:])
 
 ######################################################## SACRED #############################################################################
+def p_add_scope(p):
+    '''add_scope    :'''
+    add_scope()
+
+def p_end_scope(p):
+    '''end_scope    :'''
+    end_scope()
+
+def p_add_scope_with_lbrace(p):
+    '''add_scope_with_lbrace    : LBRACE'''
+    add_scope()
+
+def p_end_scope_with_rbrace(p):
+    '''end_scope_with_rbrace    : RBRACE'''
+    end_scope()
 
 def p_semicolon_opt(p):
     '''semicolon_opt    : SEMICOLON
@@ -324,8 +389,9 @@ def p_short_val_decl(p):
     p[0] = mytuple(["short_val_decl"] + p[1:])
 
 def p_function_decl(p):
-    '''function_decl    : FUNC function_name function
-                        | FUNC function_name signature semicolon_opt'''
+    '''function_decl    : FUNC function_name add_scope function end_scope
+                        | FUNC function_name add_scope signature end_scope semicolon_opt'''
+    #TODO: verify whether we need to add scope at the time of signature declaration
     p[0] = mytuple(["function_decl"] + p[1:])
 
 def p_function_name(p):
@@ -589,7 +655,7 @@ def p_statement(p):
                     | continue_stmt
                     | goto_stmt
                     | fallthrough_stmt
-                    | block
+                    | add_scope_with_lbrace statement_list end_scope_with_rbrace
                     | if_stmt
                     | switch_stmt
                     | for_stmt
@@ -638,9 +704,9 @@ def p_assign_op(p):
     p[0] = mytuple(["assign_op"] + p[1:])
 
 def p_if_stmt(p):
-    '''if_stmt  : IF expression block
-                | IF expression block ELSE block
-                | IF expression block ELSE if_stmt'''
+    '''if_stmt  : IF expression add_scope block end_scope
+                | IF expression add_scope block end_scope ELSE add_scope block end_scope
+                | IF expression add_scope block end_scope ELSE if_stmt'''
     p[0] = mytuple(["if_stmt"] + p[1:])
 
 def p_switch_stmt(p):
@@ -648,7 +714,7 @@ def p_switch_stmt(p):
     p[0] = mytuple(["switch_stmt"] + p[1:])
 
 def p_expr_switch_stmt(p):
-    '''expr_switch_stmt : SWITCH expression_opt LBRACE expr_case_clause_rep RBRACE'''
+    '''expr_switch_stmt : SWITCH expression_opt add_scope LBRACE expr_case_clause_rep RBRACE end_scope'''
     p[0] = mytuple(["expr_switch_stmt"] + p[1:])
 
 def p_expr_case_clause_rep(p):
@@ -666,10 +732,10 @@ def p_expr_switch_case(p):
     p[0] = mytuple(["expr_switch_case"] + p[1:])
 
 def p_for_stmt(p):
-    '''for_stmt : FOR block
-                | FOR condition block
-                | FOR for_clause block
-                | FOR range_clause block'''
+    '''for_stmt : FOR add_scope block end_scope
+                | FOR add_scope condition block end_scope
+                | FOR add_scope for_clause block end_scope
+                | FOR add_scope range_clause block end_scope'''
     p[0] = mytuple(["for_stmt"] + p[1:])
 
 def p_for_clause(p):
@@ -762,27 +828,7 @@ f.close()
 
 output = parser.parse(data)
 
-def plot_ast(ouput):
-    ast = Digraph(comment = "Abstract Syntax Tree")
-    node_i = 0
+print(output)
 
-    def process_node(data, parent):
-        if type(data) == str:
-            nonlocal node_i
-            node_i = node_i + 1
-            ast.node(str(node_i), data)
-            ast.edge(str(parent), str(node_i))
-            return
-
-        process_node(data[0], parent)
-        lparent = node_i
-        for i in data[1:]:
-            if type(i) == str:
-                process_node(i, lparent)
-            elif type(i) == tuple:
-                process_node(i, lparent)
-    process_node(output, 0)
-    ast.node(str(0), os.path.basename(infile))
-    ast.render(args.out, view=True)
-
-plot_ast(output)
+for i, scope in enumerate(scopes):
+    print(i, scope.table, scope.global_list, scope.parent)
