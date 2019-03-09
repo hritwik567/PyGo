@@ -9,9 +9,9 @@ import os
 tokens = lexer.tokens
 
 #parsing arguments
-parser = argparse.ArgumentParser(description='Output filename')
-parser.add_argument('--out', type=str, default=None,
-                    help='Output html filename')
+parser = argparse.ArgumentParser(description = "Output filename")
+parser.add_argument("--out", type=str, default=None,
+                    help="Output html filename")
 
 args, infile = parser.parse_known_args()
 
@@ -21,7 +21,7 @@ if len(infile)!=1:
 infile = infile[0]
 
 if args.out == None:
-    args.out = os.path.basename(infile).split('.')[0] + '.dot'
+    args.out = os.path.basename(infile).split('.')[0] + ".ir"
 
 def mytuple(arr):
     return tuple(arr)
@@ -744,17 +744,17 @@ def p_error(p):
     print("------------ Syntax Error ----------")
 
 precedence = (
-    ('right', 'ASSIGN', 'NOT'),
-    ('left', 'LOR'),
-    ('left', 'LAND'),
-    ('nonassoc', 'EQL', 'NEQ', 'LSS', 'LEQ', 'GTR', 'GEQ'),
-    ('left', 'ADD', 'SUB', 'OR', 'XOR'),
-    ('left', 'MUL', 'QUO', 'REM', 'SHL', 'SHR', 'AND', 'AND_NOT')
+    ("right", "ASSIGN", "NOT"),
+    ("left", "LOR"),
+    ("left", "LAND"),
+    ("nonassoc", "EQL", "NEQ", "LSS", "LEQ", "GTR", "GEQ"),
+    ("left", "ADD", "SUB", "OR", "XOR"),
+    ("left", "MUL", "QUO", "REM", "SHL", "SHR", "AND", "AND_NOT")
 )
 
 
 #Build the parser
-parser = yacc.yacc(start='source_file', debug=True)
+parser = yacc.yacc(start = "source_file", debug = True)
 
 f = open(infile)
 data = f.read()
@@ -763,7 +763,7 @@ f.close()
 output = parser.parse(data)
 
 def plot_ast(ouput):
-    ast = Digraph(comment='Abstract Syntax Tree')
+    ast = Digraph(comment = "Abstract Syntax Tree")
     node_i = 0
 
     def process_node(data, parent):
