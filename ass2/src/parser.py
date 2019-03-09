@@ -1,17 +1,29 @@
 import ply.yacc as yacc
 import sys
+import argparse
 import lexer
 from graphviz import Digraph
 import os
 
 tokens = lexer.tokens
 
-if len(sys.argv)!=2:
-    print("usage: provide 1 input file")
+#parsing arguments
+parser = argparse.ArgumentParser(description='Output filename')
+parser.add_argument('--out', type=str, default=None,
+                    help='Output html filename')
 
-infile = sys.argv[1]
+args, infile = parser.parse_known_args()
+
+if len(infile)!=1:
+    print('usage: provide 1 input file')
+
+infile = infile[0]
+
+if args.out == None:
+    args.out = infile.split('.')[0] + '.dot'
+
 def mytuple(arr):
-    # print(arr)
+    print(arr)
     return tuple(arr)
 
 def p_empty(p):
@@ -488,47 +500,31 @@ def p_receiver_type(p):
 
 def p_expression(p):
     '''expression   : unary_expr
-                    | expression binary_op expression'''
+                    | expression LOR expression
+                    | expression LAND expression
+                    | expression EQL expression
+                    | expression NEQ expression
+                    | expression LSS expression
+                    | expression LEQ expression
+                    | expression GTR expression
+                    | expression GEQ expression
+                    | expression ADD expression
+                    | expression SUB expression
+                    | expression OR expression
+                    | expression XOR expression
+                    | expression MUL expression
+                    | expression QUO expression
+                    | expression REM expression
+                    | expression SHL expression
+                    | expression SHR expression
+                    | expression AND expression
+                    | expression AND_NOT expression'''
     p[0] = mytuple(["expression"] + p[1:])
 
 def p_unary_expr(p):
     '''unary_expr   : primary_expr
                     | unary_op unary_expr'''
     p[0] = mytuple(["unary_expr"] + p[1:])
-
-def p_binary_op(p):
-    '''binary_op    : LAND
-                    | LOR
-                    | rel_op
-                    | add_op
-                    | mul_op'''
-    p[0] = mytuple(["binary_op"] + p[1:])
-
-def p_rel_op(p):
-    '''rel_op   : EQL
-                | NEQ
-                | LSS
-                | LEQ
-                | GTR
-                | GEQ'''
-    p[0] = mytuple(["rel_op"] + p[1:])
-
-def p_mul_op(p):
-    '''mul_op   : MUL
-                | QUO
-                | REM
-                | SHL
-                | SHR
-                | AND
-                | AND_NOT'''
-    p[0] = mytuple(["mul_op"] + p[1:])
-
-def p_add_op(p):
-    '''add_op   : ADD
-                | SUB
-                | OR
-                | XOR'''
-    p[0] = mytuple(["add_op"] + p[1:])
 
 def p_unary_op(p):
     '''unary_op : ADD
@@ -756,6 +752,7 @@ precedence = (
     ('left', 'MUL', 'QUO', 'REM', 'SHL', 'SHR', 'AND', 'AND_NOT')
 )
 
+
 #Build the parser
 parser = yacc.yacc(start='source_file', debug=True)
 
@@ -764,6 +761,8 @@ data = f.read()
 f.close()
 
 output = parser.parse(data)
+
+print(output)
 
 def plot_ast(ouput):
     ast = Digraph(comment='Abstract Syntax Tree')
@@ -786,6 +785,6 @@ def plot_ast(ouput):
                 process_node(i, lparent)
     process_node(output, 0)
     ast.node(str(0), os.path.basename(infile))
-    ast.render('ast_' + os.path.basename(infile).replace('.', '_'), view=True)
+    ast.render(args.out, view=True)
 
 plot_ast(output)
