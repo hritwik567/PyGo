@@ -29,7 +29,19 @@ scopes_ctr = 0
 scopes = [SymbolTable()]
 current_scope = 0
 scope_stack = [0]
+root_node = None
+import_dict = dict()
 #------------------------------------------------------------------
+
+def add_to_import_table(package, ident):
+    global import_dict
+    if package in import_dict:
+        if ident in import_dict[package]:
+            raise NameError(ident + " already imported from " + package)
+        else:
+            import_dict[package] += ident
+    else:
+        import_dict[package] = [ident]
 
 def in_scope(ident):
     global scope_stack, scopes
@@ -78,51 +90,87 @@ def mytuple(arr):
 
 def p_epsilon(p):
     '''epsilon : '''
-    p[0] = "epsilon"
+    p[0] = Node()
 
 def p_package_name(p):
     '''package_name : IDENT'''
-    p[0] = mytuple(["package_name"] + p[1:])
+    p[0] = Node()
+    p[0].id_list += [p[1]]
+
 
 def p_package_clause(p):
     '''package_clause : PACKAGE package_name'''
-    p[0] = mytuple(["package_clause"] + p[1:])
+    p[0] = p[2]
 
 
 def p_import_path(p):
     '''import_path : STRING_LIT'''
-    p[0] = mytuple(["import_path"] + p[1:])
+    p[0] = Node()
+    p[0].id_list += [p[1]]
+    #TODO: should also add to type_list
 
 def p_import_spec(p):
     '''import_spec  : import_path
-                    | package_name import_path
-                    | PERIOD import_path'''
-    p[0] = mytuple(["import_spec"] + p[1:])
+                    | PERIOD import_path
+                    | package_name import_path'''
+    global scopes, current_scope
+    if len(p) == 2:
+        p[0] = p[1]
+        if in_scope(p[1].id_list[0]):
+            raise NameError("Package " + p[1].id_list[0] + " already imported")
+        else:
+            add_to_import_table(p[1].id_list[0], None)
+            scopes[current_scope].insert(p[1].id_list[0], "package")
+
+    elif p[1] == ".":
+        p[0] = Node()
+        # p[0].id_list += [p[1] + " " + p[2].id_list[0]]
+        add_to_import_table(p[2].id_list[0], ".")
+    else:
+        p[0] = p[1]
+        # p[0].id_list = [p[0].id_list[0] + " " + p[2].id_list[0]]
+        if in_scope(p[0].id_list[0]):
+            raise NameError("Package " + p[0].id_list[0] + " already imported")
+        else:
+            add_to_import_table(p[2].id_list[0], p[0].id_list[0])
+            scopes[current_scope].insert(p[0].id_list[0], "package")
+
 
 def p_import_spec_rep(p):
     '''import_spec_rep  : import_spec_rep import_spec semicolon_opt
                         | epsilon'''
-    p[0] = mytuple(["import_spec_rep"] + p[1:])
+    p[0] = p[1]
+    # if len(p) == 4:
+        # p[0].id_list += p[2].id_list
 
 def p_import_decl(p):
     '''import_decl  : IMPORT import_spec
                     | IMPORT LPAREN import_spec_rep RPAREN'''
-    p[0] = mytuple(["import_decl"] + p[1:])
+    if len(p) == 3:
+        p[0] = p[2]
+    else:
+        p[0] = p[3]
 
 def p_import_decl_rep(p):
     '''import_decl_rep  : import_decl_rep import_decl semicolon_opt
                         | epsilon'''
-    p[0] = mytuple(["import_decl_rep"] + p[1:])
+    p[0] = p[1]
+    if len(p) == 4:
+        p[0].code += p[2].code
 
 def p_top_level_decl_rep(p):
     '''top_level_decl_rep   : top_level_decl_rep top_level_decl semicolon_opt
                             | epsilon'''
-    p[0] = mytuple(["top_level_decl_rep"] + p[1:])
+    p[0] = p[1]
+    if len(p) == 4:
+        p[0].code += p[2].code
 
 
 def p_source_file(p):
     '''source_file  : package_clause semicolon_opt import_decl_rep top_level_decl_rep'''
-    p[0] = mytuple(["source_file"] + p[1:])
+    p[0] = p[1]
+    p[0].code += p[3].code
+    p[0].code += p[4].code
 
 ######################################################## SACRED #############################################################################
 def p_add_scope(p):
@@ -241,17 +289,12 @@ def p_function_type(p):
     p[0] = mytuple(["function_type"] + p[1:])
 
 def p_signature(p):
-    '''signature    : parameters parameters_rep result'''
+    '''signature    : parameters result'''
     p[0] = mytuple(["signature"] + p[1:])
 
-def p_parameters_rep(p):
-    '''parameters_rep   : parameters_rep parameters
-                        | epsilon'''
-    p[0] = mytuple(["parameters_rep"] + p[1:])
-
 def p_result(p):
-    '''result   : type
-                | epsilon'''
+    '''result   : parameters
+                | type'''
     p[0] = mytuple(["result"] + p[1:])
 
 def p_parameters(p):
@@ -392,11 +435,24 @@ def p_function_decl(p):
     '''function_decl    : FUNC function_name add_scope function end_scope
                         | FUNC function_name add_scope signature end_scope semicolon_opt'''
     #TODO: verify whether we need to add scope at the time of signature declaration
-    p[0] = mytuple(["function_decl"] + p[1:])
+    global scopes, current_scope
+    if len(p) == 6:
+        if in_scope(p[2]):
+            raise NameError("Function " + p[2] + " already defined")
+        else:
+            scopes[current_scope].insert(p[2], "function")
+            p[0] = Node()
+            p[0].code += p[4].code
+    else:
+        if in_scope("signature_" + p[2]):
+            raise NameError("Signature " + p[2] + " already defined")
+        else:
+            scopes[current_scope].insert("signature_" + p[2], "signature")
+            p[0] = Node()
 
 def p_function_name(p):
     '''function_name    : IDENT'''
-    p[0] = mytuple(["function_name"] + p[1:])
+    p[0] = p[1]
 
 def p_function(p):
     '''function : signature function_body'''
@@ -672,7 +728,11 @@ def p_simple_stmt(p):
 
 def p_labeled_stmt(p):
     '''labeled_stmt : label COLON statement'''
-    p[0] = mytuple(["labeled_stmt"] + p[1:])
+    if in_scope(p[1]):
+        raise NameError("Label " + p[1] + " already defined")
+    else:
+        global scopes
+        scopes[current_scope].insert(p[1], "label")
 
 def p_expression_stmt(p):
     '''expression_stmt  : expression'''
@@ -780,29 +840,46 @@ def p_return_stmt(p):
 
 def p_fallthrough_stmt(p):
     '''fallthrough_stmt : FALLTHROUGH'''
-    p[0] = mytuple(["fallthrough_stmt"] + p[1:])
+    p[0] = Node()
+    p[0].code += ["fallthrough"] #TODO: WTF is this
 
 def p_defer_stmt(p):
    '''defer_stmt  : DEFER expression'''
-   p[0] = mytuple(["defer_stmt"] + p[1:])
+   p[0] = Node()
+   p[0].code += ["defer"] + p[2].code #TODO: WTF is this
 
 def p_goto_stmt(p):
     '''goto_stmt  : GOTO label'''
-    p[0] = mytuple(["goto_stmt"] + p[1:])
+    if !in_scope(p[2]):
+        raise NameError("Label " + p[2] + " not defined")
+    p[0] = Node()
+    p[0].code += ["goto", p[2]] #TODO: change this
 
 def p_continue_stmt(p):
     '''continue_stmt    : CONTINUE label
                         | CONTINUE'''
-    p[0] = mytuple(["continue_stmt"] + p[1:])
+    p[0] = Node()
+    if len(p) == 3:
+        if !in_scope(p[2]):
+            raise NameError("Label " + p[2] + " not defined")
+        p[0].code += ["continue", p[2]] #TODO: change this
+    else:
+        p[0].code += ["continue"] #TODO: change this to jump to end of the loop
 
 def p_break_stmt(p):
     '''break_stmt   : BREAK label
                     | BREAK'''
-    p[0] = mytuple(["break_stmt"] + p[1:])
+    p[0] = Node()
+    if len(p) == 3:
+        if !in_scope(p[2]):
+            raise NameError("Label " + p[2] + " not defined")
+        p[0].code += ["break", p[2]] #TODO: change this
+    else:
+        p[0].code += ["break"] #TODO: change this to jump to end of the loop
 
 def p_label(p):
     '''label : IDENT'''
-    p[0] = mytuple(["label"] + p[1:])
+    p[0] = p[1]
 
 def p_error(p):
     print("------------ Syntax Error ----------")
