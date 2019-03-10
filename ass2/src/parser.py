@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import ply.yacc as yacc
 import sys
 import argparse
@@ -20,7 +21,7 @@ if len(infile)!=1:
 infile = infile[0]
 
 if args.out == None:
-    args.out = infile.split('.')[0] + '.dot'
+    args.out = os.path.basename(infile).split('.')[0] + '.dot'
 
 def mytuple(arr):
     print(arr)
@@ -176,18 +177,24 @@ def p_function_type(p):
     p[0] = mytuple(["function_type"] + p[1:])
 
 def p_signature(p):
-    '''signature    : parameters parameters_rep result'''
+    '''signature    : parameters result'''
     p[0] = mytuple(["signature"] + p[1:])
 
-def p_parameters_rep(p):
-    '''parameters_rep   : parameters_rep parameters
-                        | epsilon'''
-    p[0] = mytuple(["parameters_rep"] + p[1:])
-
 def p_result(p):
-    '''result   : type
+    '''result   : parameters
+                | type_list
+                | type
                 | epsilon'''
     p[0] = mytuple(["result"] + p[1:])
+
+def p_type_list(p):
+    '''type_list    : LPAREN type type_rep comma_opt RPAREN'''
+    p[0] = mytuple(["type_list"] + p[1:])
+
+def p_type_rep(p):
+    '''type_rep : type_rep COMMA type
+                | epsilon'''
+    p[0] = mytuple(["type_rep"] + p[1:])
 
 def p_parameters(p):
     '''parameters   : LPAREN RPAREN
