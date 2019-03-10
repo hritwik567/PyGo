@@ -209,7 +209,9 @@ def p_type_token(p):
                     | UINT
                     | INT
                     | UINTPTR'''
-    p[0] = mytuple(["type_token"] + p[1:])
+    p[0] = Node()
+    p[0].type_list += [p[1]]
+
 
 
 
@@ -219,7 +221,12 @@ def p_type(p):
             | TYPE IDENT'''
     # check_shivansh
     # Arpit LPAREN type RPAREN removed from RHS
-    p[0] = mytuple(["type"] + p[1:])
+    # we shoudl check wether this type is available
+    if len(p) == 3:
+        p[0] = Node()
+        p[0].type_list += ["type " + p[2]]
+    else:
+        p[0] = p[1]
 
 def p_operand_name(p):
     '''operand_name : IDENT'''
@@ -229,7 +236,8 @@ def p_type_name(p):
     '''type_name    : IDENT'''
     # check_shivansh
     #Hritvik remove qualified_ident from type_name
-    p[0] = mytuple(["type_name"] + p[1:])
+    p[0] = Node()
+    p[0].type_list += [p[1]]
 
 def p_type_lit(p):
     '''type_lit : array_type
@@ -239,23 +247,26 @@ def p_type_lit(p):
                 | interface_type
                 | slice_type
                 | map_type'''
-    p[0] = mytuple(["type_lit"] + p[1:])
+    p[0] = p[1]
 
 def p_array_type(p):
     '''array_type   : LBRACK array_length RBRACK element_type'''
-    p[0] = mytuple(["array_type"] + p[1:])
+    p[0] = Node()
+    p[0].type_list += ["[]" + p[4].type_list[0]]
+    #TODO: figure out what yo do with length
 
 def p_array_length(p):
     '''array_length : expression'''
-    p[0] = mytuple(["array_length"] + p[1:])
+    p[0] = p[1]
 
 def p_element_type(p):
     '''element_type : type'''
-    p[0] = mytuple(["element_type"] + p[1:])
+    p[0] = p[1]
 
 def p_slice_type(p):
     '''slice_type   : LBRACK RBRACK element_type'''
-    p[0] = mytuple(["slice_type"] + p[1:])
+    p[0] = Node()
+    p[0].type_list += ["[]" + p[4].type_list[0]]
 
 def p_struct_type(p):
     '''struct_type  : STRUCT LBRACE field_decl_rep RBRACE'''
@@ -274,19 +285,25 @@ def p_field_decl(p):
 def p_embedded_field(p):
     '''embedded_field   : MUL type_name
                         | type_name'''
-    p[0] = mytuple(["embedded_field"] + p[1:])
+    if len(p) == 3:
+        p[0] = p[2]
+        p[0].type_list[0] =  "*" + p[0].type_list[0]
+    else:
+        p[0] = p[1]
 
 def p_pointer_type(p):
     '''pointer_type : MUL base_type'''
-    p[0] = mytuple(["pointer_type"] + p[1:])
+    p[0] = p[2]
+    p[0].type_list[0] = "*" + p[0].type_list[0]
 
 def p_base_type(p):
     '''base_type    : type'''
-    p[0] = mytuple(["base_type"] + p[1:])
+    p[0] = p[1]
 
 def p_function_type(p):
     '''function_type    : FUNC signature'''
-    p[0] = mytuple(["function_type"] + p[1:])
+    p[0] = Node()
+    p[0].type_list += ["func"] + p[1].type_list
 
 def p_signature(p):
     '''signature    : parameters result'''
@@ -294,8 +311,19 @@ def p_signature(p):
 
 def p_result(p):
     '''result   : parameters
-                | type'''
+                | type_list
+                | type
+                | epsilon'''
     p[0] = mytuple(["result"] + p[1:])
+
+def p_type_list(p):
+    '''type_list    : LPAREN type type_rep comma_opt RPAREN'''
+    p[0] = mytuple(["type_list"] + p[1:])
+
+def p_type_rep(p):
+    '''type_rep : type_rep COMMA type
+                | epsilon'''
+    p[0] = mytuple(["type_rep"] + p[1:])
 
 def p_parameters(p):
     '''parameters   : LPAREN RPAREN
@@ -336,19 +364,20 @@ def p_method_spec(p):
 
 def p_method_name(p):
     '''method_name  : IDENT'''
-    p[0] = mytuple(["method_name"] + p[1:])
+    p[0] = p[1]
 
 def p_interface_type_name(p):
     '''interface_type_name  : type_name'''
-    p[0] = mytuple(["interface_type_name"] + p[1:])
+    p[0] = p[1]
 
 def p_map_type(p):
     '''map_type : MAP LBRACK key_type RBRACK element_type'''
-    p[0] = mytuple(["map_type"] + p[1:])
+    p[0] = Node()
+    p[0].type_list = ["map", p[3].type_list, p[5].type_list]
 
 def p_key_type(p):
     '''key_type : type'''
-    p[0] = mytuple(["key_type"] + p[1:])
+    p[0] = p[1]
 
 def p_declaration(p):
     '''declaration  : const_decl
@@ -380,7 +409,7 @@ def p_const_spec(p):
 def p_type_opt(p):
     '''type_opt : type
                 | epsilon'''
-    p[0] = mytuple(["type_opt"] + p[1:])
+    p[0] = p[1]
 
 def p_type_decl(p):
     '''type_decl    : TYPE type_spec
@@ -559,15 +588,12 @@ def p_function_lit(p):
 def p_primary_expr(p):
     '''primary_expr : operand
                     | conversion
-                    | method_expr arguments
                     | primary_expr selector
                     | primary_expr index
                     | primary_expr slice
                     | primary_expr arguments'''
     # check_shivansh
     # | operand_selector
-    # | method_expr LPAREN arguments_for_method_expr RPAREN
-    # since we already have method_expr we can remove primary_expr arguments_for_method_expr
     # but make sure of test cases : a.b.c(d,e)      x.a = b     foo(a,b)    etc.
     # operand selector in RHS becomes redundant; never gets used
     # slice may need to be removed from RHS
@@ -608,17 +634,6 @@ def p_ellipsis_opt(p):
     '''ellipsis_opt : ELLIPSIS
                     | epsilon'''
     p[0] = mytuple(["ellipsis_opt"] + p[1:])
-
-def p_method_expr(p):
-    '''method_expr  : receiver_type PERIOD method_name'''
-    p[0] = mytuple(["method_expr"] + p[1:])
-
-# ReceiverType  = TypeName | "(" "*" TypeName ")" | "(" ReceiverType ")" .
-def p_receiver_type(p):
-    '''receiver_type    : type_name'''
-    # Removed some RHS from production
-    # couldn't find any of its use
-    p[0] = mytuple(["receiver_type"] + p[1:])
 
 def p_expression(p):
     '''expression   : unary_expr
