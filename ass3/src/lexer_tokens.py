@@ -112,7 +112,6 @@ t_RBRACE = r'\}'
 t_SEMICOLON = r';'
 t_COLON = r'\:'
 
-t_HEX_LIT = r'0[xX][0-9a-fA-F]+'
 # t_RBANANA_BRACE = r'\)\]'
 # t_LBANANA_BRACE = r'\[\('
 

@@ -13,22 +13,30 @@ def t_FOR_COMP(t):
 
 def t_IDENT(t):
     r'[a-zA-Z_][a-zA-Z_0-9]*'
-    t.type = reserved.get(t.value,'IDENT')    # Check for reserved words
+    t.type = reserved.get(t.value, 'IDENT')    # Check for reserved words
     return t
 
 def t_FLOAT_LIT(t):
     r'(?: (?: \d* \. \d+ ) | (?: \d+ \.? ) )(?: [Ee] [+-]? \d+ ) ?'
     if re.match(r'^0[0-7]+$', t.value):
         t.type = 'OCTAL_LIT'
+        t.value = int(t.value, 8)
         return t
     elif t.value == '0' or re.match(r'^[1-9][0-9]*$', t.value):
         t.type = 'DECIMAL_LIT'
+        t.value = int(t.value)
         return t
     elif re.match(r'^0[0-9]+$', t.value):
         t.type = 'ILLEGAL'
         return t
     else:
+        t.value = float(t.value)
         return t
+
+def t_HEX_LIT(t):
+    r'0[xX][0-9a-fA-F]+'
+    t.value = int(t[2:], 16)
+    return t
 
 def t_TICK_STRING(t):
     r'\`([^`])*\`'
