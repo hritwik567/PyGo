@@ -1063,13 +1063,15 @@ def p_for_stmt(p):
     p[0] = mytuple(["for_stmt"] + p[1:])
 
 def p_for_clause(p):
-    '''for_clause   : init_stmt post_init_stmt'''
+    '''for_clause   : init_stmt SEMICOLON condition_opt SEMICOLON post_stmt'''
+    # Ayush changed this because earlier case allowed a wrond for format to be correctly parsed
+    # Suppose init_stmt -> simple_stmt and post_init_stmt -> epsilon (wrong)
     p[0] = mytuple(["for_clause"] + p[1:])
 
-def p_post_init_stmt(p):
-    '''post_init_stmt    : SEMICOLON condition_opt SEMICOLON post_stmt
-                    | epsilon'''
-    p[0] = mytuple(["post_init_stmt"] + p[1:])
+#def p_post_init_stmt(p):
+#    '''post_init_stmt    : SEMICOLON condition_opt SEMICOLON post_stmt
+#                    | epsilon'''
+#    p[0] = mytuple(["post_init_stmt"] + p[1:])
 
 
 def p_post_stmt(p):
