@@ -52,7 +52,7 @@ def add_to_import_table(package, ident):
         if ident in import_dict[package]:
             raise NameError(ident + " already imported from " + package)
         else:
-            import_dict[package] += ident
+            import_dict[package] += [ident]
     else:
         import_dict[package] = [ident]
 
@@ -225,9 +225,12 @@ def p_type_token(p):
                     | STRING'''
     p[0] = Node()
     p[0].type_list += [p[1]]
-
-
-
+    sizeof = dict()
+    sizeof["uint8"] = 1; sizeof["uint16"] = 2; sizeof["uint32"] = 4; sizeof["uint"] = 4; sizeof["uint64"] = 8;
+    sizeof["int8"] = 1; sizeof["int16"] = 2; sizeof["int32"] = 4; sizeof["int"] = 4; sizeof["int64"] = 8;
+    sizeof["float32"] = 4; sizeof["float64"] = 8;
+    sizeof["byte"] = 1; sizeof["bool"] = 1;
+    p[0].extra["size"] = sizeof[p[1]]
 
 def p_type(p):
     '''type : type_token
@@ -253,25 +256,35 @@ def p_type_name(p):
     # check_shivansh
     #Hritvik remove qualified_ident from type_name
     p[0] = Node()
-    p[0].type_list = [p[1]]
+    p[0].type_list = ["type " + p[1]]
 
 def p_type_lit(p):
     '''type_lit : array_type
                 | struct_type
                 | pointer_type
-                | function_type
                 | interface_type
                 | slice_type'''
+    #Hritvik removed function_type
     p[0] = p[1]
 
 def p_array_type(p):
     '''array_type   : LBRACK array_length RBRACK element_type'''
+    global scopes
+    if type(p[2].code[-1][-1]) != int:
+        raise TypeError("Array length should be integer")
     p[0] = Node()
+    if "type" in p[4].type_list[0]:
+        info = find_info(p[4].type_list[0], 0)
+        if info["is_type"]:
+            p[0].extra["element_size"] = info["size"]
+        else:
+            TypeError("Type " + p[4].type_list[0] + " not defined")
+    else:
+        p[0].extra["element_size"] = p[4].extra["size"]
     p[0].type_list = ["array"]
-    p[0].extra["element_type"] = p[4]
-    p[0].extra["array_length"] = p[2]
-
-    #TODO: figure out what yo do with length
+    p[0].extra["element_type"] = p[4].type_list[0]
+    p[0].extra["size"] = p[2].code[-1][-1]
+    p[0].code = p[4].code
 
 def p_array_length(p):
     '''array_length : expression'''
@@ -284,42 +297,77 @@ def p_element_type(p):
 def p_slice_type(p):
     '''slice_type   : LBRACK RBRACK element_type'''
     p[0] = Node()
+    if "type" in p[4].type_list[0]:
+        info = find_info(p[4].type_list[0], 0)
+        if info["is_type"]:
+            p[0].extra["element_size"] = info["size"]
+        else:
+            TypeError("Type " + p[4].type_list[0] + " not defined")
+    else:
+        p[0].extra["element_size"] = p[3].extra["size"]
     p[0].type_list = ["slice"]
-    p[0].extra["element_type"] = p[3]
+    p[0].extra["element_type"] = p[3].type_list[0]
+    p[0].code = p[3].code
 
 def p_struct_type(p):
     '''struct_type  : STRUCT LBRACE field_decl_rep RBRACE'''
-    # ADD "fields" and "methods"
-    p[0] = mytuple(["struct_type"] + p[1:])
+    # ADD "fields" and "methods" and "field_types" and "field_size"
+    p[0] = Node()
+    p[0].extra["fields"] = p[3].id_list
+    p[0].extra["fields_type"] = p[3].type_list
+    p[0].extra["fields_size"] = p[3].extra["element_size"]
+    p[0].type_list = ["struct"]
+    p[0].extra["size"] = sum(p[3].extra["element_size"])
+    p[0].code = p[3].code
 
 def p_field_decl_rep(p):
     '''field_decl_rep   : field_decl_rep field_decl semicolon_opt
                         | epsilon'''
-    p[0] = mytuple(["field_decl_rep"] + p[1:])
+    p[0] = p[1]
+    if len(p) == 4:
+        p[0].id_list += p[2].id_list
+        p[0].type_list += p[2].type_list
+        p[0].extra["element_size"] += p[2].extra["element_size"]
+        p[0].code += p[2].code
+    else:
+        p[0].extra["element_size"] = []
 
 def p_field_decl(p):
     '''field_decl   : identifier_list type'''
-    p[0] = mytuple(["field_decl"] + p[1:])
+    p[0] = Node()
+    p[0].id_list = p[1].id_list
+    p[0].type_list = [p[4].type_list[0]]*len(p[0].id_list)
+    if "type" in p[4].type_list[0]:
+        info = find_info(p[4].type_list[0], 0)
+        p[0].extra["element_size"] = [info["size"]]*len(p[0].id_list)
+    else:
+        p[0].type_list = [p[0].extra["size"]]*len(p[0].id_list)
+    p[0].code = p[2].code
 
 def p_pointer_type(p):
     '''pointer_type : MUL base_type'''
+    if "type" in p[2].type_list[0]:
+        info = find_info(p[2].type_list[0], 0)
+        if info["is_type"]:
+            TypeError("Type " + p[4].type_list[0] + " not defined")
     p[0] = p[2]
-    p[0].type_list[0] = "*" + p[0].type_list[0]
+    p[0].type_list = ["pointer " + p[0].type_list[0]]
+    p[0].extra["size"] = 4
 
 def p_base_type(p):
     '''base_type    : type'''
     p[0] = p[1]
 
-def p_function_type(p):
-    '''function_type    : FUNC signature'''
-    p[0] = Node()
-    p[0].type_list += ["func"] + p[1].type_list #TODO: Need to fix this
+# def p_function_type(p):
+#     '''function_type    : FUNC signature'''
+#     p[0] = Node()
+#     p[0].type_list += ["func"] + p[1].type_list #TODO: Need to fix this
 
 def p_signature(p):
     '''signature    : parameters result'''
     p[0] = Node()
     p[0].id_list = p[1].id_list
-    p[0].type_list = p[1].id_list
+    p[0].type_list = p[1].type_list
     if len(p[2].type_list) == 0:
         p[0].extra["return_type"] = ["void"]
         p[0].extra["return_id"] = [None]
@@ -447,26 +495,42 @@ def p_type_opt(p):
 
 def p_type_decl(p):
     '''type_decl    : TYPE type_spec
-                    | type LPAREN type_spec_rep RPAREN'''
+                    | TYPE LPAREN type_spec_rep RPAREN'''
     p[0] = mytuple(["type_decl"] + p[1:])
 
 def p_type_spec_rep(p):
     '''type_spec_rep    : type_spec_rep type_spec semicolon_opt
                         | epsilon'''
-    p[0] = mytuple(["type_spec_rep"] + p[1:])
+    p[0] = p[1]
 
 def p_type_spec(p):
-    '''type_spec    : alias_decl
-                    | type_def'''
-    p[0] = mytuple(["type_spec"] + p[1:])
+    '''type_spec    : type_def'''
+    #TODO: Hritvik removed alias type add that it is pretty easy
+    p[0] = p[1]
 
-def p_alias_decl(p):
-    '''alias_decl   : IDENT ASSIGN type'''
-    p[0] = mytuple(["alias_decl"] + p[1:])
+# def p_alias_decl(p):
+#     '''alias_decl   : IDENT ASSIGN type'''
+#     p[0] = mytuple(["alias_decl"] + p[1:])
 
 def p_type_def(p):
     '''type_def : IDENT type'''
-    p[0] = mytuple(["type_def"] + p[1:])
+    #TODO: Hritvik changed this to struct type
+    p[0] = Node()
+    global scopes, current_scope
+    scopes[current_scope].insert("type " + p[1], "struct")
+    scopes[current_scope].update("type " + p[1], [], "methods")
+    scopes[current_scope].update("type " + p[1], p[0].extra["fields"], "fields")
+    scopes[current_scope].update("type " + p[1], p[2].extra["fields_type"], "fields_type")
+    scopes[current_scope].update("type " + p[1], p[2].extra["fields_size"], "fields_size")
+    scopes[current_scope].update("type " + p[1], p[2].extra["size"], "size")
+
+def p_var_decl(p):
+    '''var_decl : VAR var_spec
+                | VAR LPAREN var_spec_rep RPAREN'''
+    if len(p) == 3:
+		p[0] = p[2]
+	else:
+		p[0] = p[3]
 
 def p_var_spec_rep(p):
     '''var_spec_rep : var_spec_rep var_spec semicolon_opt
@@ -616,8 +680,8 @@ def p_operand(p):
         p[0] = p[2]
 
 def p_literal(p):
-    '''literal  : basic_lit
-                | composite_lit'''
+    '''literal  : basic_lit'''
+    #TODO: Removed composite_lit for now
     #TODO: Hritvik removed function_lit dekh lo agar ho sakta hai toh
     p[0] = p[1]
 
@@ -634,6 +698,7 @@ def p_basic_lit(p):
         p[0].place_list = [temp_v]
         p[0].code = [[temp_v, "=", p[1]]]
         p[0].type_list = ["float32"]
+        p[0].extra["size"] = 4
     else:
         p[0] = Node()
         p[0].place_list = [temp_v]
@@ -649,6 +714,7 @@ def p_int_lit(p):
     p[0].place_list = [temp_v]
     p[0].code = [[temp_v, "=", p[1]]]
     p[0].type_list = ["int"]
+    p[0].extra["size"] = 4
 
 
 def p_qualified_ident(p):
@@ -725,7 +791,7 @@ def p_primary_expr(p):
             if info["is_var"]:
                 p[0].type_list[0] = info["type"]
                 p[0].place_list[0] = info["temp"]
-                info1 = get_info(info["type"], 0)
+                info1 = find_info(info["type"], 0)
                 if p[3] in info1["fields"]:
                 elif p[3] in info1["methods"]:
                 else:
@@ -1063,13 +1129,15 @@ def p_for_stmt(p):
     p[0] = mytuple(["for_stmt"] + p[1:])
 
 def p_for_clause(p):
-    '''for_clause   : init_stmt post_init_stmt'''
+    '''for_clause   : init_stmt SEMICOLON condition_opt SEMICOLON post_stmt'''
+    # Ayush changed this because earlier case allowed a wrond for format to be correctly parsed
+    # Suppose init_stmt -> simple_stmt and post_init_stmt -> epsilon (wrong)
     p[0] = mytuple(["for_clause"] + p[1:])
 
-def p_post_init_stmt(p):
-    '''post_init_stmt    : SEMICOLON condition_opt SEMICOLON post_stmt
-                    | epsilon'''
-    p[0] = mytuple(["post_init_stmt"] + p[1:])
+# def p_post_init_stmt(p):
+#     '''post_init_stmt    : SEMICOLON condition_opt SEMICOLON post_stmt
+#                     | epsilon'''
+#     p[0] = mytuple(["post_init_stmt"] + p[1:])
 
 
 def p_post_stmt(p):
