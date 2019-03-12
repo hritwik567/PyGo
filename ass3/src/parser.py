@@ -35,6 +35,12 @@ import_dict = dict()
 temp_ctr = 0
 label_ctr = 0
 label_dict = dict()
+sizeof = dict()
+sizeof["uint8"] = 1; sizeof["uint16"] = 2; sizeof["uint32"] = 4; sizeof["uint"] = 4; sizeof["uint64"] = 8;
+sizeof["int8"] = 1; sizeof["int16"] = 2; sizeof["int32"] = 4; sizeof["int"] = 4; sizeof["int64"] = 8;
+sizeof["float32"] = 4; sizeof["float64"] = 8;
+sizeof["byte"] = 1; sizeof["bool"] = 1;
+
 
 def new_temp():
     global temp_ctr
@@ -223,13 +229,9 @@ def p_type_token(p):
                     | INT
                     | UINTPTR
                     | STRING'''
+    global sizeof
     p[0] = Node()
     p[0].type_list += [p[1]]
-    sizeof = dict()
-    sizeof["uint8"] = 1; sizeof["uint16"] = 2; sizeof["uint32"] = 4; sizeof["uint"] = 4; sizeof["uint64"] = 8;
-    sizeof["int8"] = 1; sizeof["int16"] = 2; sizeof["int32"] = 4; sizeof["int"] = 4; sizeof["int64"] = 8;
-    sizeof["float32"] = 4; sizeof["float64"] = 8;
-    sizeof["byte"] = 1; sizeof["bool"] = 1;
     p[0].extra["size"] = sizeof[p[1]]
 
 def p_type(p):
@@ -248,6 +250,12 @@ def p_type(p):
 def p_operand_name(p):
     '''operand_name : IDENT'''
     p[0] = Node()
+    if p[1] == "true" or p[1] == "false"
+        p[0].place_list = [temp_v]
+        p[0].code = [[temp_v, "=", p[1]]]
+        p[0].type_list = ["bool"]
+        p[0].extra["size"] = 1
+    else:
     p[0].id_list = [p[1]]
     p[0].type_list = ["identifier"]
 
@@ -276,14 +284,13 @@ def p_array_type(p):
     if "type" in p[4].type_list[0]:
         info = find_info(p[4].type_list[0], 0)
         if info["is_type"]:
-            p[0].extra["element_size"] = info["size"]
+            temp_v = info["size"]
         else:
             TypeError("Type " + p[4].type_list[0] + " not defined")
     else:
-        p[0].extra["element_size"] = p[4].extra["size"]
-    p[0].type_list = ["array"]
-    p[0].extra["element_type"] = p[4].type_list[0]
-    p[0].extra["size"] = p[2].code[-1][-1]
+        temp_v = p[4].extra["size"]
+    p[0].type_list = [["array", p[4].type_list[0], temp_v]]
+    p[0].extra["size"] = p[2].code[-1][-1]*temp_v
     p[0].code = p[4].code
 
 def p_array_length(p):
@@ -300,18 +307,19 @@ def p_slice_type(p):
     if "type" in p[4].type_list[0]:
         info = find_info(p[4].type_list[0], 0)
         if info["is_type"]:
-            p[0].extra["element_size"] = info["size"]
+            temp_v = info["size"]
         else:
             TypeError("Type " + p[4].type_list[0] + " not defined")
     else:
-        p[0].extra["element_size"] = p[3].extra["size"]
-    p[0].type_list = ["slice"]
-    p[0].extra["element_type"] = p[3].type_list[0]
+        temp_v = p[3].extra["size"]
+    p[0].type_list = [["slice", p[3].type_list[0], temp_v]]
     p[0].code = p[3].code
 
 def p_struct_type(p):
     '''struct_type  : STRUCT LBRACE field_decl_rep RBRACE'''
-    # ADD "fields" and "methods" and "field_types" and "field_size"
+    # ADD "fields" and "methods" and "fields_type" and "field_size"
+    if len(p[3].id_list) != len(set(p[3].id_list)):
+        raise NameError("Multiple fields with same name in struct")
     p[0] = Node()
     p[0].extra["fields"] = p[3].id_list
     p[0].extra["fields_type"] = p[3].type_list
@@ -351,7 +359,7 @@ def p_pointer_type(p):
         if info["is_type"]:
             TypeError("Type " + p[4].type_list[0] + " not defined")
     p[0] = p[2]
-    p[0].type_list = ["pointer " + p[0].type_list[0]]
+    p[0].type_list = [["pointer", p[0].type_list[0]]]
     p[0].extra["size"] = 4
 
 def p_base_type(p):
@@ -513,7 +521,7 @@ def p_type_spec(p):
 #     p[0] = mytuple(["alias_decl"] + p[1:])
 
 def p_type_def(p):
-    '''type_def : IDENT type'''
+    '''type_def : IDENT struct_type'''
     #TODO: Hritvik changed this to struct type
     p[0] = Node()
     global scopes, current_scope
@@ -558,6 +566,7 @@ def p_var_spec(p):
             if scopes[current_scope].look_up(id_list[i]):
                 raise NameError("Variable " + id_list[i] + "already declared\n")
             scopes[current_scope].insert(id_list[i], expr_type_list[i])
+            scopes[current_scope].update(id_list[i], p[3].extra["size"][i], "size")
             scopes[current_scope].update(id_list[i], p[3].place_list[i], "temp")
             scopes[current_scope].update(id_list[i], True, "is_var")
 
@@ -569,13 +578,14 @@ def p_var_spec(p):
                 raise NameError("Variable " + id_list[i] + "already declared\n")
             temp_v = new_temp()
             scopes[current_scope].insert(id_list[i], p[2].type_list[0])
+            scopes[current_scope].update(id_list[i], p[2].extra["size"], "size")
             scopes[current_scope].update(id_list[i], temp_v, "temp")
             scopes[current_scope].update(id_list[i], True, "is_var")
-
+            p[0].code += p[2].code
     else:
         if len(p[1].id_list) != len(p[3].place_list):
             raise ArithmeticError("Different Number of identifiers and Expressions\n")
-        p[0].place_list += p[3].place_list
+        p[0].place_list = p[3].place_list
         id_list = p[1].id_list
         expr_type_list = p[3].type_list
         for i in range(len(id_list)):
@@ -586,8 +596,10 @@ def p_var_spec(p):
             typecast = typecast or (p[2].type_list[0].startswith("uint") and "uint" in expr_type_list[i])
             if p[2].type_list[0] == expr_type_list[i] or typecast:
                 scopes[current_scope].insert(p[1].id_list[i], p[2].type_list[0])
+                scopes[current_scope].update(id_list[i], p[2].extra["size"], "size")
                 scopes[current_scope].update(id_list[i], p[3].place_list[i], "temp")
                 scopes[current_scope].update(id_list[i], True, "is_var")
+                p[0].code += p[2].code
             else:
                 raise TypeError("Type mismatch for identifier:" + id_list[i])
 
@@ -609,6 +621,7 @@ def p_short_val_decl(p):
     if scopes[current_scope].look_up(p[1]):
         raise NameError("Variable " + p[1] + "already declared\n")
     scopes[current_scope].insert(p[1], p[3].type_list[0])
+    scopes[current_scope].update(p[1], p[3].extra["size"], "size")
     scopes[current_scope].update(p[1], p[3].place_list[0], "temp")
     scopes[current_scope].update(p[1], True, "is_var")
 
@@ -790,20 +803,49 @@ def p_primary_expr(p):
         if "identifier" == p[0].type_list[0]:
             info = find_info(p[0].id_list[0])
             if info["is_var"]:
-                p[0].type_list[0] = info["type"]
-                p[0].place_list[0] = info["temp"]
+                temp_v = new_temp()
+                p[0].code += [[temp_v, "=", "(addr)", info["temp"]]]
                 info1 = find_info(info["type"], 0)
-                if p[3] in info1["fields"]:
-                    
-                # elif p[3] in info1["methods"]:
-                else:
-                    raise NameError("No field or method " + p[3] + " defined in " + info["type"])
             else:
                 raise NameError("Variable " + p[0].id_list[0] + " not defined")
+        else:
+            info1 = find_info(p[0].type_list[0], 0)
+            temp_v = p[0].place_list[0]
+
+        if info1["is_type"] and p[3] in info1["fields"]:
+            p[0].type_list[0] = info1["fields_type"][info1["fields"].index(p[3])]
+            temp_v1 = new_temp()
+            p[0].code += [[temp_v1, "=", temp_v, "int_+", sum(info1["fields_size"][:info1["fields"].index(p[3])])]]
+            p[0].place_list[0] = temp_v1
+            p[0].extra["size"] = info1["fields_size"][info1["fields"].index(p[3])]
+        # elif p[3] in info1["methods"]:
+        else:
+            raise NameError("No field or method " + p[3] + " defined in " + info1["type"])
+
     elif p[2] == "[":
-        if p[1].id_list[0] == "identifier":
-    elif len(p) == 3:
-        if p[1].id_list[0] == "identifier":
+        p[0] = p[1]
+        p[0].code += p[3].code
+        if "identifier" == p[0].type_list[0]:
+            info = find_info(p[0].id_list[0])
+            if info["is_var"]:
+                temp_v = new_temp()
+                p[0].code += [[temp_v, "=", "(addr)", info["temp"]]]
+                info1 = find_info(info["type"], 0)
+            else:
+                raise NameError("Variable " + p[0].id_list[0] + " not defined")
+        elif "array" not in p[0].type_list[0]:
+            raise TypeError("Type " + p[0].type_list[0] + " not indexable")
+        else:
+            temp_v = p[0].place_list[0]
+        p[0].type_list[0] = p[0].type_list[0][1]
+        temp_v1 = new_temp()
+        temp_v2 = new_temp()
+        p[0].code += [[temp_v1, p[0].type_list[0][2], "int_*", p[3].place_list[0]], [temp_v2, "=", temp_v, "int_+", temp_v1]]
+        p[0].place_list[0] = temp_v1
+        p[0].extra["size"] = p[0].type_list[0][2]
+    #TODO: Hritvik not implementing slice for now
+    # elif len(p) == 3:
+    #     if p[1].id_list[0] == "identifier":
     elif p[2] == "(":
         if p[1].id_list[0] == "identifier":
             #find function
@@ -846,6 +888,7 @@ def p_expression(p):
     else:
         temp_v = new_temp()
         p[0] = Node()
+        p[0].extra["size"] = max(p[1].extra["size"], p[3].extra["size"])
         if type(p[1].code[-1][-1]) == int and type(p[3].code[-1][-1]) == int:
             p[0].code = p[1].code[:-1]
             p[0].code += p[3].code[:-1]
@@ -914,6 +957,7 @@ def p_unary_expr(p):
             if info["is_var"]:
                 p[0].type_list[0] = info["type"]
                 p[0].place_list[0] = info["temp"]
+                p[0].extra["size"] = info["size"]
             else:
                 raise NameError("Variable " + p[0].id_list[0] + " not defined")
     else:
@@ -944,11 +988,11 @@ def p_unary_expr(p):
                 raise TypeError("Type Mismatch with unary operator" + p[1])
 
         if p[1] == "*":
-            if p[2].type_list[0].startswith("*"):
+            if p[2].type_list[0][0] == "pointer":
                 p[0] = p[2]
                 temp_v = new_temp()
                 p[0].code += [[temp_v, "=", "(load)", p[2].place_list[0]]]
-                p[0].type_list = p[2].type_list[0][1:]
+                p[0].type_list = p[2].type_list[0][1]
                 p[0].place_list = [temp_v]
             else:
                 raise TypeError("Type Mismatch with unary operator" + p[1])
@@ -957,7 +1001,7 @@ def p_unary_expr(p):
             p[0] = p[2]
             temp_v = new_temp()
             p[0].code += [[temp_v, "=", "(addr)", p[2].place_list[0]]]
-            p[0].type_list = ["*" + p[2].type_list[0]]
+            p[0].type_list = [["pointer", p[2].type_list[0]]]
             p[0].place_list = [temp_v]
 
 def p_unary_op(p):
@@ -1063,17 +1107,32 @@ def p_labeled_stmt(p):
     if in_scope(p[1]):
         raise NameError("Label " + p[1] + " already defined")
     else:
-        global scopes
+        global scopes, current_scope
         scopes[current_scope].insert(p[1], "label")
+        scopes[current_scope].update(p[1], new_label(), "value")
 
 def p_expression_stmt(p):
     '''expression_stmt  : expression'''
-    p[0] = mytuple(["expression_stmt"] + p[1:])
+    p[0] = p[1]
 
 def p_inc_dec_stmt(p):
     '''inc_dec_stmt : expression INC
                     | expression DEC'''
-    p[0] = mytuple(["inc_dec_stmt"] + p[1:])
+    p[0] = p[1]
+    temp_v = new_temp()
+
+    if "int" in p[0].type_list[0]:
+        type_v = "int"
+    elif "float" in p[0].type_list[0]:
+        type_v = "float"
+    else:
+        type_v = ""
+
+    if type_v != "":
+        p[0].code += [[temp_v, "=", p[0].place_list[0], type_v + "_" + p[2][1], "1"]]
+        p[0].place_list[0] = temp_v
+    else:
+        raise TypeError("Can't do " + p[2] + " operation on type " + p[0].type_list[0])
 
 def p_assignment(p):
     '''assignment   : expression_list assign_op expression_list'''
