@@ -197,9 +197,24 @@ def p_source_file(p):
 def p_add_scope(p):
     '''add_scope    :'''
     add_scope()
+    if p[-1] == 'for':
+        p[0] = Node()
+        for_label = "_for_" + new_label()
+        end_for_label = "_end_" + for_label
+        scopes[current_scope].insert(for_label, "label")
+        scopes[current_scope].update("__BeginFor", for_label, "value")
+        scopes[current_scope].update("__MidFor", for_label, "value")
+        scopes[current_scope].update("__EndFor", end_for_label, "value")
+        p[0].code += ["label, " + for_label]
 
 def p_end_scope(p):
     '''end_scope    :'''
+    if p[-3] == 'for' or p[-4] == 'for':
+        p[0] = Node()
+        for_label = find_info("__BeginFor", current_scope)["value"]
+        end_for_label = "_end_" + for_label
+        p[0].code += ["goto " + for_label]
+        p[0].code += ["label, " + end_for_label]
     end_scope()
 
 def p_add_scope_with_lbrace(p):
@@ -1101,6 +1116,10 @@ def p_statement_rep(p):
         p[0] = p[1]
 def p_block(p):
     '''block    : LBRACE statement_list RBRACE'''
+    # p[0] = mytuple(["block"] + p[1:])
+    # TODO: Add block code and pass on above with id, type and temp_var list
+    # Note that new label must be made by the production calling the block
+    # If the block wants to use the label of the current scope then it should be able to fetch it from symbol table (extra dict())
     p[0] = p[2]
 
 def p_conversion(p):
@@ -1255,10 +1274,16 @@ def p_expr_switch_case(p):
 def p_for_stmt(p):
     '''for_stmt : FOR add_scope block end_scope
                 | FOR add_scope condition block end_scope
-                | FOR add_scope for_clause block end_scope
-                | FOR add_scope range_clause block end_scope'''
-    p[0] = mytuple(["for_stmt"] + p[1:])
-
+                | FOR add_scope for_clause block end_scope'''
+                #| FOR add_scope range_clause block end_scope'''
+    # Leaving out range clause for now
+    #p[0] = mytuple(["for_stmt"] + p[1:])
+    p[0] = Node()
+    if len(p) == 5:
+        p[0].code += p[2].code
+        p[0].code += p[3].code
+        p[0].code += p[4].code
+    
 def p_for_clause(p):
     '''for_clause   : init_stmt SEMICOLON condition_opt SEMICOLON post_stmt'''
     # Ayush changed this because earlier case allowed a wrond for format to be correctly parsed
@@ -1322,23 +1347,35 @@ def p_continue_stmt(p):
     '''continue_stmt    : CONTINUE label
                         | CONTINUE'''
     p[0] = Node()
+    # TODO: Add continue for switch and select if implementing
+    # Test this
     if len(p) == 3:
         if not in_scope(p[2]):
             raise NameError("Label " + p[2] + " not defined")
-        p[0].code += ["continue", p[2]] #TODO: change this
+        mid_for_label = "_mid_" + p[2]
+        p[0].code += ["goto " + mid_for_label]
     else:
-        p[0].code += ["continue"] #TODO: change this to jump to end of the loop
+        if not in_scope("__BeginFor"):
+            raise SyntaxError("Continue statement must be inside for loop")
+        mid_for_label = find_info("__MidFor")["value"]
+        p[0].code += ["goto " + mid_for_label]
 
 def p_break_stmt(p):
     '''break_stmt   : BREAK label
                     | BREAK'''
     p[0] = Node()
+    # TODO: Add break for switch and select if implementing
+    # Test this
     if len(p) == 3:
         if not in_scope(p[2]):
             raise NameError("Label " + p[2] + " not defined")
-        p[0].code += ["break", p[2]] #TODO: change this
+        end_for_label = "_end_" + p[2]
+        p[0].code += ["goto " + end_for_label]
     else:
-        p[0].code += ["break"] #TODO: change this to jump to end of the loop
+        if not in_scope("__BeginFor"):
+            raise SyntaxError("Break statement must be inside for loop")
+        end_for_label = find_info("__EndFor")["value"]
+        p[0].code += ["goto " + end_for_label]
 
 def p_label(p):
     '''label : IDENT'''
