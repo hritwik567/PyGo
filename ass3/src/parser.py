@@ -496,7 +496,7 @@ def p_type_opt(p):
 def p_type_decl(p):
     '''type_decl    : TYPE type_spec
                     | TYPE LPAREN type_spec_rep RPAREN'''
-    p[0] = mytuple(["type_decl"] + p[1:])
+    p[0] = p[1]
 
 def p_type_spec_rep(p):
     '''type_spec_rep    : type_spec_rep type_spec semicolon_opt
@@ -523,6 +523,7 @@ def p_type_def(p):
     scopes[current_scope].update("type " + p[1], p[2].extra["fields_type"], "fields_type")
     scopes[current_scope].update("type " + p[1], p[2].extra["fields_size"], "fields_size")
     scopes[current_scope].update("type " + p[1], p[2].extra["size"], "size")
+    scopes[current_scope].update("type " + p[1], True, "size")
 
 def p_var_decl(p):
     '''var_decl : VAR var_spec
@@ -793,7 +794,8 @@ def p_primary_expr(p):
                 p[0].place_list[0] = info["temp"]
                 info1 = find_info(info["type"], 0)
                 if p[3] in info1["fields"]:
-                elif p[3] in info1["methods"]:
+                    
+                # elif p[3] in info1["methods"]:
                 else:
                     raise NameError("No field or method " + p[3] + " defined in " + info["type"])
             else:
