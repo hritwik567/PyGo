@@ -1,10 +1,6 @@
-import numpy as np
-import argparse
 import sys
-import os
 import ply.lex as lex
 import re
-import csv
 from lexer_tokens import *
 
 def t_FOR_COMP(t):

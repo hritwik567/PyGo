@@ -1,9 +1,9 @@
 class SymbolTable():
     def __init__(self):
-        self.table = dict()
-        self.global_list = []
-        self.parent = None
-        self.extra = dict()
+        self.table = dict()                 # Dict of Dict (keeps key-value pairs for each item of dict)
+        self.global_list = []               # Keeps track of all item's keys in the current table
+        self.parent = None                  # A scope maybe a subscope some other scope, thus there maybe a parent
+        self.extra = dict()                 # Any extra values required in the table goes here
 
     def look_up(self, name):
         return (name in self.table)
