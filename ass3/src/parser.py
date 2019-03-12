@@ -359,7 +359,7 @@ def p_pointer_type(p):
         if info["is_type"]:
             TypeError("Type " + p[4].type_list[0] + " not defined")
     p[0] = p[2]
-    p[0].type_list = [["pointer", p[0].type_list[0]]]
+    p[0].type_list = [["pointer", p[0].type_list[0], p[0].extra["size"]]]
     p[0].extra["size"] = 4
 
 def p_base_type(p):
@@ -809,15 +809,15 @@ def p_primary_expr(p):
             else:
                 raise NameError("Variable " + p[0].id_list[0] + " not defined")
         else:
-            info1 = find_info(p[0].type_list[0], 0)
+            info1 = find_info(p[0].type_list[0][1], 0)
             temp_v = p[0].place_list[0]
 
         if info1["is_type"] and p[3] in info1["fields"]:
-            p[0].type_list[0] = info1["fields_type"][info1["fields"].index(p[3])]
+            p[0].type_list[0] = ["pointer", info1["fields_type"][info1["fields"].index(p[3])], info1["fields_size"][info1["fields"].index(p[3])]]
             temp_v1 = new_temp()
             p[0].code += [[temp_v1, "=", temp_v, "int_+", sum(info1["fields_size"][:info1["fields"].index(p[3])])]]
             p[0].place_list[0] = temp_v1
-            p[0].extra["size"] = info1["fields_size"][info1["fields"].index(p[3])]
+            p[0].extra["size"] = 4
         # elif p[3] in info1["methods"]:
         else:
             raise NameError("No field or method " + p[3] + " defined in " + info1["type"])
@@ -837,12 +837,12 @@ def p_primary_expr(p):
             raise TypeError("Type " + p[0].type_list[0] + " not indexable")
         else:
             temp_v = p[0].place_list[0]
-        p[0].type_list[0] = p[0].type_list[0][1]
+        p[0].type_list[0] = ["pointer", p[0].type_list[0][1], p[0].type_list[0][2]]
         temp_v1 = new_temp()
         temp_v2 = new_temp()
         p[0].code += [[temp_v1, p[0].type_list[0][2], "int_*", p[3].place_list[0]], [temp_v2, "=", temp_v, "int_+", temp_v1]]
         p[0].place_list[0] = temp_v1
-        p[0].extra["size"] = p[0].type_list[0][2]
+        p[0].extra["size"] = 4
     #TODO: Hritvik not implementing slice for now
     # elif len(p) == 3:
     #     if p[1].id_list[0] == "identifier":
@@ -960,6 +960,12 @@ def p_unary_expr(p):
                 p[0].extra["size"] = info["size"]
             else:
                 raise NameError("Variable " + p[0].id_list[0] + " not defined")
+        elif "pointer" in p[0].type_list[0]:
+            temp_v = new_temp()
+            p[0].code += [[temp_v, "=", "(load)", p[0].place_list[0]]]
+            p[0].type_list = p[0].type_list[0][1]
+            p[0].size = p[0].type_list[0][2]
+            p[0].place_list = [temp_v]
     else:
         if p[1] == "!":
             if "int" in p[2].type_list[0] or p[2].type_list[0] == "bool" or p[2].type_list[0] == "byte" :
@@ -979,10 +985,14 @@ def p_unary_expr(p):
         if p[1] == "-":
             if "int" in p[2].type_list[0] or "float" in p[2].type_list[0] :
                 p[0] = p[2]
+                if "int" in p[2].type_list[0]:
+                    type_v = "int"
+                else:
+                    type_v = "float"
                 temp_v1 = new_temp()
                 temp_v2 = new_temp()
                 p[0].code += [[temp_v1, "=", "0"]]
-                p[0].code += [[temp_v2, "=", temp_v1, p[1], p[2].place_list[0]]]
+                p[0].code += [[temp_v2, "=", temp_v1, type_v + "_" + p[1], p[2].place_list[0]]]
                 p[0].place_list = [temp_v2]
             else:
                 raise TypeError("Type Mismatch with unary operator" + p[1])
@@ -993,6 +1003,7 @@ def p_unary_expr(p):
                 temp_v = new_temp()
                 p[0].code += [[temp_v, "=", "(load)", p[2].place_list[0]]]
                 p[0].type_list = p[2].type_list[0][1]
+                p[0].size = p[2].type_list[0][2]
                 p[0].place_list = [temp_v]
             else:
                 raise TypeError("Type Mismatch with unary operator" + p[1])
@@ -1001,7 +1012,7 @@ def p_unary_expr(p):
             p[0] = p[2]
             temp_v = new_temp()
             p[0].code += [[temp_v, "=", "(addr)", p[2].place_list[0]]]
-            p[0].type_list = [["pointer", p[2].type_list[0]]]
+            p[0].type_list = [["pointer", p[2].type_list[0], p[2].extra["size"]]]
             p[0].place_list = [temp_v]
 
 def p_unary_op(p):
