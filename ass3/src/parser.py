@@ -52,7 +52,7 @@ def add_to_import_table(package, ident):
         if ident in import_dict[package]:
             raise NameError(ident + " already imported from " + package)
         else:
-            import_dict[package] += ident
+            import_dict[package] += [ident]
     else:
         import_dict[package] = [ident]
 
@@ -319,7 +319,7 @@ def p_signature(p):
     '''signature    : parameters result'''
     p[0] = Node()
     p[0].id_list = p[1].id_list
-    p[0].type_list = p[1].id_list
+    p[0].type_list = p[1].type_list
     if len(p[2].type_list) == 0:
         p[0].extra["return_type"] = ["void"]
         p[0].extra["return_id"] = [None]
@@ -447,7 +447,7 @@ def p_type_opt(p):
 
 def p_type_decl(p):
     '''type_decl    : TYPE type_spec
-                    | type LPAREN type_spec_rep RPAREN'''
+                    | TYPE LPAREN type_spec_rep RPAREN'''
     p[0] = mytuple(["type_decl"] + p[1:])
 
 def p_type_spec_rep(p):
