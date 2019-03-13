@@ -205,7 +205,7 @@ def p_add_scope(p):
         scopes[current_scope].insert("__BeginFor", for_label, "value")
         scopes[current_scope].insert("__MidFor", for_label, "value")
         scopes[current_scope].insert("__EndFor", end_for_label, "value")
-        p[0].code += ["label, " + for_label]
+        p[0].code += [["label", for_label]]
 
     elif p[-2] == 'if':
         p[0] = Node()
@@ -214,7 +214,7 @@ def p_add_scope(p):
         end_if_label = "_end_if_" + temp_label
         scopes[current_scope].insert("__Else", else_label, "value")
         scopes[current_scope].insert("__EndIf", end_if_label, "value")
-        p[0].code += ["if not " + p[-1].place_list[0] + "then goto " + else_label]
+        p[0].code += [["if not", p[-1].place_list[0], "then goto", else_label]]
 
 def p_end_scope(p):
     '''end_scope    :'''
@@ -222,15 +222,15 @@ def p_end_scope(p):
         p[0] = Node()
         for_label = find_info("__BeginFor", current_scope)["value"]
         end_for_label = "_end_" + for_label
-        p[0].code += ["goto " + for_label]
-        p[0].code += ["label, " + end_for_label]
+        p[0].code += [["goto", for_label]]
+        p[0].code += [["label", end_for_label]]
 
     if p[-4] == 'if':
         p[0] = Node()
         else_label = find_info("__Else", current_scope)["value"]
         end_if_label = find_info("__EndIf", current_scope)["value"]
-        p[0].code += ["goto " + end_if_label]
-        p[0].code += ["label, " + else_label]
+        p[0].code += [["goto", end_if_label]]
+        p[0].code += [["label", else_label]]
         p[0].extra["EndIfLabel"] = end_if_label
 
     end_scope()
@@ -1198,8 +1198,11 @@ def p_labeled_stmt(p):
         raise NameError("Label " + p[1] + " already defined")
     else:
         global scopes, current_scope
+        temp_l = new_label()
         scopes[current_scope].insert(p[1], "label")
-        scopes[current_scope].update(p[1], new_label(), "value")
+        scopes[current_scope].update(p[1], temp_l, "value")
+        p[0] = p[3]
+        p[0].code = [["label", temp_l]] + p[0].code
 
 def p_expression_stmt(p):
     '''expression_stmt  : expression'''
@@ -1310,7 +1313,6 @@ def p_for_stmt(p):
                 | FOR add_scope for_clause block end_scope'''
                 #| FOR add_scope range_clause block end_scope'''
     # TODO: Leaving out range clause for now, maybe add later
-    #p[0] = mytuple(["for_stmt"] + p[1:])
     p[0] = Node()
     if len(p) == 5:
         p[0].code += p[2].code
@@ -1320,12 +1322,11 @@ def p_for_stmt(p):
         p[0].code += p[3].code
         p[0].code += p[4].code
         p[0].code += p[5].code
-    
+
 def p_for_clause(p):
     '''for_clause   : init_stmt SEMICOLON condition_opt SEMICOLON post_stmt'''
     # Ayush changed this because earlier case allowed a wrond for format to be correctly parsed
     # Suppose init_stmt -> simple_stmt and post_init_stmt -> epsilon (wrong)
-    #p[0] = mytuple(["for_clause"] + p[1:])
     p[0] = Node()
     if not p[1].code == []:
         p[0].code += p[1].code
@@ -1334,12 +1335,12 @@ def p_for_clause(p):
     if not p[3].code == []:
         p[0].code += p[3].code
         end_for_label = find_info("__EndFor")["value"]
-        p[0].code += ["if not " + p[3].place_list[0] + "then goto " + end_for_label]
+        p[0].code += [["if not", p[3].place_list[0], "then goto", end_for_label]]
 
     if not p[5].code == []:
         mid_for_label = "_mid_" + find_info("__BeginFor")["value"]
         scopes[current_scope].update("__MidFor", mid_for_label, "value")
-        p[0].code += ["label, " + mid_for_label]
+        p[0].code += [["label", mid_for_label]]
         p[0].code += p[5].code
 
 # def p_post_init_stmt(p):
@@ -1351,16 +1352,15 @@ def p_for_clause(p):
 def p_post_stmt(p):
     '''post_stmt    : simple_stmt
                     | epsilon'''
-    p[0] = mytuple(["post_stmt"] + p[1:])
+    p[0] = p[1]
 
 def p_init_stmt(p):
     '''init_stmt    : simple_stmt
                     | epsilon'''
-    p[0] = mytuple(["init_stmt"] + p[1:])
+    p[0] = p[1]
 
 def p_condition(p):
     '''condition    : expression'''
-    #p[0] = mytuple(["condition"] + p[1:])
     # TODO: Add condition statement for if
     # Test "for" one
     if p[1].type_list[0] != "bool":
@@ -1379,7 +1379,7 @@ def p_condition(p):
 def p_condition_opt(p):
     '''condition_opt    : condition
                         | epsilon'''
-    p[0] = mytuple(["condition_opt"] + p[1:])
+    p[0] = p[1]
 
 def p_range_clause(p):
     '''range_clause : RANGE expression
@@ -1404,10 +1404,11 @@ def p_defer_stmt(p):
 
 def p_goto_stmt(p):
     '''goto_stmt  : GOTO label'''
-    if not in_scope(p[2]):
-        raise NameError("Label " + p[2] + " not defined")
+    info = find_info(p[2])
+    if info["type"] != "label":
+        raise NameError("No label " + p[2] + " defined")
     p[0] = Node()
-    p[0].code += ["goto", p[2]] #TODO: change this
+    p[0].code += [["goto", info["value"]]]
 
 def p_continue_stmt(p):
     '''continue_stmt    : CONTINUE label
@@ -1419,12 +1420,12 @@ def p_continue_stmt(p):
         if not in_scope(p[2]):
             raise NameError("Label " + p[2] + " not defined")
         mid_for_label = "_mid_" + p[2]
-        p[0].code += ["goto " + mid_for_label]
+        p[0].code += [["goto", mid_for_label]]
     else:
         if not in_scope("__BeginFor"):
             raise SyntaxError("Continue statement must be inside for loop")
         mid_for_label = find_info("__MidFor")["value"]
-        p[0].code += ["goto " + mid_for_label]
+        p[0].code += [["goto", mid_for_label]]
 
 def p_break_stmt(p):
     '''break_stmt   : BREAK label
@@ -1436,12 +1437,12 @@ def p_break_stmt(p):
         if not in_scope(p[2]):
             raise NameError("Label " + p[2] + " not defined")
         end_for_label = "_end_" + p[2]
-        p[0].code += ["goto " + end_for_label]
+        p[0].code += [["goto", end_for_label]]
     else:
         if not in_scope("__BeginFor"):
             raise SyntaxError("Break statement must be inside for loop")
         end_for_label = find_info("__EndFor")["value"]
-        p[0].code += ["goto " + end_for_label]
+        p[0].code += [["goto", end_for_label]]
 
 def p_label(p):
     '''label : IDENT'''
