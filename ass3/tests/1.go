@@ -27,10 +27,10 @@ func main() {
 	// 	c[2] = a
 	// }
 	// c[1] = a
-	// var d type T
-	// d.c[0] = 3
+	var d type T
+	d.c[0] = 3
 	var e [2][3][4]int
-	e[0][1][1] = 3
+	e[0][1][2] = 3
 	// for {
 	// 	var x =3
 	// 	continue

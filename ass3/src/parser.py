@@ -920,7 +920,6 @@ def p_primary_expr(p):
 
     elif p[2] == "[":
         p[0] = p[1]
-        print("array", p[0].type_list[0])
         p[0].code += p[3].code
         if "identifier" == p[0].type_list[0]:
             info = find_info(p[0].id_list[0])
@@ -931,12 +930,19 @@ def p_primary_expr(p):
                 p[0].extra["size"] = info["size"]
             else:
                 raise NameError("Variable " + p[0].id_list[0] + " not defined")
-        elif not ("array" in p[0].type_list[0] or "pointer" in p[0].type_list[0]):
+        elif "pointer" in p[0].type_list[0]:
+            if "array" not in p[0].type_list[0][1]:
+                raise TypeError("Type " + p[0].type_list[0] + " not indexable")
+            p[0].extra["size"] = p[0].type_list[0][2]
+            p[0].type_list = [p[0].type_list[0][1]]
+            temp_v = p[0].place_list[0]
+        elif "array" not in p[0].type_list[0]:
             raise TypeError("Type " + p[0].type_list[0] + " not indexable")
         else:
             temp_v = p[0].place_list[0]
         print("array", p[0].type_list)
         p[0].type_list = [["pointer", p[0].type_list[0][1], p[0].type_list[0][2]]]
+        print("array", p[0].type_list)
         temp_v1 = new_temp()
         temp_v2 = new_temp()
         p[0].code += [[temp_v1, "=", p[3].place_list[0], "int_*", p[0].type_list[0][2]], [temp_v2, "=", temp_v, "int_+", temp_v1]]
