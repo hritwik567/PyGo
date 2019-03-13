@@ -207,6 +207,15 @@ def p_add_scope(p):
         scopes[current_scope].insert("__EndFor", end_for_label, "value")
         p[0].code += ["label, " + for_label]
 
+    elif p[-2] == 'if':
+        p[0] = Node()
+        temp_label = new_label()
+        else_label = "_else_" + temp_label
+        end_if_label = "_end_if_" + temp_label
+        scopes[current_scope].insert("__Else", else_label, "value")
+        scopes[current_scope].insert("__EndIf", end_if_label, "value")
+        p[0].code += ["if not " + p[-1].place_list[0] + "then goto " + else_label]
+
 def p_end_scope(p):
     '''end_scope    :'''
     if p[-3] == 'for' or p[-4] == 'for':
@@ -215,6 +224,15 @@ def p_end_scope(p):
         end_for_label = "_end_" + for_label
         p[0].code += ["goto " + for_label]
         p[0].code += ["label, " + end_for_label]
+
+    if p[-4] == 'if':
+        p[0] = Node()
+        else_label = find_info("__Else", current_scope)["value"]
+        end_if_label = find_info("__EndIf", current_scope)["value"]
+        p[0].code += ["goto " + end_if_label]
+        p[0].code += ["label, " + else_label]
+        p[0].extra["EndIfLabel"] = end_if_label
+
     end_scope()
 
 def p_add_scope_with_lbrace(p):
@@ -1247,7 +1265,22 @@ def p_if_stmt(p):
     '''if_stmt  : IF expression add_scope block end_scope
                 | IF expression add_scope block end_scope ELSE add_scope block end_scope
                 | IF expression add_scope block end_scope ELSE if_stmt'''
-    p[0] = mytuple(["if_stmt"] + p[1:])
+    # Need to test this once
+    #p[0] = mytuple(["if_stmt"] + p[1:])
+    if p[2].type_list[0] != "bool":
+        raise TypeError("The condition " + p[2] + " is not a boolean value")
+    p[0] = Node()
+    p[0].code += p[2].code
+    p[0].code += p[3].code
+    p[0].code += p[4].code
+    p[0].code += p[5].code
+
+    if len(p) == 8:
+        p[0].code += p[7].code
+    elif len(p) == 9:
+        p[0].code += p[7].code
+
+    p[0].code += ["label, " + p[5].extra["EndIfLabel"]]
 
 def p_switch_stmt(p):
     '''switch_stmt  : expr_switch_stmt'''
