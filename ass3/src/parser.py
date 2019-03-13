@@ -186,7 +186,6 @@ def p_top_level_decl_rep(p):
     if len(p) == 4:
         p[0].code += p[2].code
 
-
 def p_source_file(p):
     '''source_file  : package_clause semicolon_opt import_decl_rep top_level_decl_rep'''
     p[0] = p[1]
@@ -291,14 +290,8 @@ def p_type(p):
 def p_operand_name(p):
     '''operand_name : IDENT'''
     p[0] = Node()
-    if p[1] == "true" or p[1] == "false":
-        p[0].place_list = [temp_v]
-        p[0].code = [[temp_v, "=", p[1]]]
-        p[0].type_list = ["bool"]
-        p[0].extra["size"] = 1
-    else:
-        p[0].id_list = [p[1]]
-        p[0].type_list = ["identifier"]
+    p[0].id_list = [p[1]]
+    p[0].type_list = ["identifier"]
 
 def p_type_name(p):
     '''type_name    : TYPE IDENT'''
@@ -371,12 +364,12 @@ def p_field_decl(p):
     '''field_decl   : identifier_list type'''
     p[0] = Node()
     p[0].id_list = p[1].id_list
-    p[0].type_list = [p[4].type_list[0]]*len(p[0].id_list)
-    if "type" in p[4].type_list[0]:
-        info = find_info(p[4].type_list[0], 0)
-        p[0].extra["element_size"] = [info["size"]]*len(p[0].id_list)
+    p[0].type_list = [p[2].type_list[0]]*len(p[1].id_list)
+    if "type" in p[2].type_list[0]:
+        info = find_info(p[2].type_list[0], 0)
+        p[0].extra["element_size"] = [info["size"]]*len(p[1].id_list)
     else:
-        p[0].type_list = [p[0].extra["size"]]*len(p[0].id_list)
+        p[0].extra["element_size"] = [p[2].extra["size"]]*len(p[1].id_list)
     p[0].code = p[2].code
 
 def p_pointer_type(p):
@@ -555,12 +548,12 @@ def p_type_opt(p):
 def p_type_decl(p):
     '''type_decl    : TYPE type_spec
                     | TYPE LPAREN type_spec_rep RPAREN'''
-    p[0] = p[1]
+    p[0] = Node()
 
 def p_type_spec_rep(p):
     '''type_spec_rep    : type_spec_rep type_spec semicolon_opt
                         | epsilon'''
-    p[0] = p[1]
+    p[0] = Node()
 
 def p_type_spec(p):
     '''type_spec    : type_def'''
@@ -578,7 +571,7 @@ def p_type_def(p):
     global scopes, current_scope
     scopes[current_scope].insert("type " + p[1], "struct")
     scopes[current_scope].update("type " + p[1], [], "methods")
-    scopes[current_scope].update("type " + p[1], p[0].extra["fields"], "fields")
+    scopes[current_scope].update("type " + p[1], p[2].extra["fields"], "fields")
     scopes[current_scope].update("type " + p[1], p[2].extra["fields_type"], "fields_type")
     scopes[current_scope].update("type " + p[1], p[2].extra["fields_size"], "fields_size")
     scopes[current_scope].update("type " + p[1], p[2].extra["size"], "size")
@@ -614,6 +607,8 @@ def p_var_spec(p):
         for i in range(len(p[1].id_list)):
             if scopes[current_scope].look_up(id_list[i]):
                 raise NameError("Variable " + id_list[i] + "already declared\n")
+            if expr_type_list[i] == "void":
+                raise TypeError("Cannot assign type void")
             if p[3].place_list[i] in temp_array:
                 temp_v = new_temp()
                 p[0].code += [["decl", temp_v], [temp_v, "=", p[3].place_list[i]]]
@@ -650,6 +645,8 @@ def p_var_spec(p):
             for i in range(len(id_list)):
                 if scopes[current_scope].look_up(id_list[i]):
                     raise NameError("Variable " + id_list[i] + "already declared\n")
+                if expr_type_list[i] == "void":
+                    raise TypeError("Cannot assign type void")
                 typecast = ("float" in p[2].type_list[0] and "int" in expr_type_list[i])
                 typecast = typecast or (p[2].type_list[0].startswith("int") and "int" in expr_type_list[i])
                 typecast = typecast or (p[2].type_list[0].startswith("uint") and "uint" in expr_type_list[i])
@@ -685,6 +682,8 @@ def p_short_val_decl(p):
     p[0].id_list += [p[1]]
     if scopes[current_scope].look_up(p[1]):
         raise NameError("Variable " + p[1] + "already declared\n")
+    if p[0].type_list[0] == "void":
+        raise TypeError("Cannot assign type void")
     if p[3].place_list[0] in temp_array:
         temp_v = new_temp()
         p[0].code += [["decl", temp_v], [temp_v, "=", p[3].place_list[0]]]
@@ -789,10 +788,19 @@ def p_literal(p):
 def p_basic_lit(p):
     '''basic_lit    : int_lit
                     | FLOAT_LIT
+                    | TRUE
+                    | FALSE
                     | STRING_LIT '''
     #Add imaginary and rune lit
     if type(p[1]) == Node:
         p[0] = p[1]
+    elif p[1] == "true" or p[1] == "false":
+        temp_v = new_temp()
+        p[0] = Node()
+        p[0].place_list = [temp_v]
+        p[0].code = [[temp_v, "=", p[1]]]
+        p[0].type_list = ["bool"]
+        p[0].extra["size"] = 1
     elif type(p[1]) == float:
         temp_v = new_temp()
         p[0] = Node()
@@ -901,10 +909,10 @@ def p_primary_expr(p):
             temp_v = p[0].place_list[0]
 
         if p[3] in info1["fields"]:
-            p[0].type_list[0] = ["pointer", info1["fields_type"][info1["fields"].index(p[3])], info1["fields_size"][info1["fields"].index(p[3])]]
+            p[0].type_list = [["pointer", info1["fields_type"][info1["fields"].index(p[3])], info1["fields_size"][info1["fields"].index(p[3])]]]
             temp_v1 = new_temp()
             p[0].code += [[temp_v1, "=", temp_v, "int_+", sum(info1["fields_size"][:info1["fields"].index(p[3])])]]
-            p[0].place_list[0] = temp_v1
+            p[0].place_list = [temp_v1]
             p[0].extra["size"] = 4
         # elif p[3] in info1["methods"]:
         else:
@@ -912,24 +920,27 @@ def p_primary_expr(p):
 
     elif p[2] == "[":
         p[0] = p[1]
+        print("array", p[0].type_list[0])
         p[0].code += p[3].code
         if "identifier" == p[0].type_list[0]:
             info = find_info(p[0].id_list[0])
             if info["is_var"]:
                 temp_v = new_temp()
                 p[0].code += [[temp_v, "=", "(addr)", info["temp"]]]
-                info1 = find_info(info["type"], 0)
+                p[0].type_list = [info["type"]]
+                p[0].extra["size"] = info["size"]
             else:
                 raise NameError("Variable " + p[0].id_list[0] + " not defined")
-        elif "array" not in p[0].type_list[0]:
+        elif not ("array" in p[0].type_list[0] or "pointer" in p[0].type_list[0]):
             raise TypeError("Type " + p[0].type_list[0] + " not indexable")
         else:
             temp_v = p[0].place_list[0]
-        p[0].type_list[0] = ["pointer", p[0].type_list[0][1], p[0].type_list[0][2]]
+        print("array", p[0].type_list)
+        p[0].type_list = [["pointer", p[0].type_list[0][1], p[0].type_list[0][2]]]
         temp_v1 = new_temp()
         temp_v2 = new_temp()
-        p[0].code += [[temp_v1, p[0].type_list[0][2], "int_*", p[3].place_list[0]], [temp_v2, "=", temp_v, "int_+", temp_v1]]
-        p[0].place_list[0] = temp_v1
+        p[0].code += [[temp_v1, "=", p[3].place_list[0], "int_*", p[0].type_list[0][2]], [temp_v2, "=", temp_v, "int_+", temp_v1]]
+        p[0].place_list = [temp_v2]
         p[0].extra["size"] = 4
     #TODO: Hritvik not implementing slice for now
     # elif len(p) == 3:
@@ -939,15 +950,20 @@ def p_primary_expr(p):
             info = find_info(p[1].id_list[0], 0)
             print("info", info)
             if info["type"] == "function":
-                temp_v = new_temp()
                 p[0] = Node()
                 p[0].code += p[3].code
                 for i, j in enumerate(info["parameter_type"]):
                     if p[3].type_list[i] == j and p[3].extra["size"][i] == info["parameter_size"][i]:
                         p[0].code += [["push", p[3].place_list[i]]]
                     else:
-                        raise TypeError("Function " + p[0].id_list[0] + " should not be called with type " + j + " at the index " + str(i))
-                p[0].code += [["goto", info["label"]], ["pop", sum(info["parameter_size"])]]
+                        raise TypeError("Function " + p[1].id_list[0] + " should not be called with type " + j + " at the index " + str(i))
+                p[0].code += [["goto", info["label"]]]
+                if info["return_type"][0] != "void":
+                    temp_v = new_temp()
+                    p[0].code += [["return_value", "=", temp_v]]
+                else:
+                    temp_v = "temp_void"
+                p[0].code += [["pop", sum(info["parameter_size"])]]
                 p[0].place_list = [temp_v]
                 p[0].type_list = [info["return_type"][0]]
                 p[0].extra["size"] = info["return_size"][0]
@@ -1072,8 +1088,10 @@ def p_unary_expr(p):
         elif "pointer" in p[0].type_list[0]:
             temp_v = new_temp()
             p[0].code += [[temp_v, "=", "(load)", p[0].place_list[0]]]
-            p[0].type_list = p[0].type_list[0][1]
-            p[0].size = p[0].type_list[0][2]
+            #Hritvik these 2 statemnts should be written in the following order
+            p[0].extra["size"] = p[0].type_list[0][2]
+            p[0].type_list = [p[0].type_list[0][1]]
+            print("pointer", p[0].type_list)
             p[0].place_list = [temp_v]
     else:
         if p[1] == "!":
@@ -1231,7 +1249,10 @@ def p_statement(p):
                     | switch_stmt
                     | for_stmt
                     | defer_stmt'''
-    p[0] = p[1]
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        p[0] = p[2]
 
 def p_simple_stmt(p):
     '''simple_stmt  : epsilon
@@ -1272,7 +1293,7 @@ def p_inc_dec_stmt(p):
 
     if type_v != "":
         p[0].code += [[temp_v, "=", p[0].place_list[0], type_v + "_" + p[2][1], "1"]]
-        p[0].place_list[0] = temp_v
+        p[0].place_list = [temp_v]
     else:
         raise TypeError("Can't do " + p[2] + " operation on type " + p[0].type_list[0])
 
@@ -1293,10 +1314,11 @@ def p_assignment(p):
         typecast = ("float" in expr_type_list_key[i] and "int" in expr_type_list_val[i])
         typecast = typecast or (expr_type_list_key[i].startswith("int") and "int" in expr_type_list_val[i])
         typecast = typecast or (expr_type_list_key[i].startswith("uint") and "uint" in expr_type_list_val[i])
+        print("assignment", expr_type_list_key, expr_type_list_val)
         if expr_type_list_key[i] == expr_type_list_val[i] or typecast:
             p[0].code += [[expr_place_list_key[i], "=", expr_place_list_val[i]]]
         else:
-            raise TypeError("Type mismatch for identifier:" + id_list[i])
+            raise TypeError("Type mismatch for identifier " + expr_place_list_key[i])
 
 def p_assign_op(p):
     '''assign_op    : ASSIGN
@@ -1328,8 +1350,8 @@ def p_if_stmt(p):
 
     if len(p) == 8:
         p[0].code += p[7].code
-    elif len(p) == 9:
-        p[0].code += p[7].code
+    elif len(p) == 10:
+        p[0].code += p[8].code
 
     p[0].code += ["label, " + p[5].extra["EndIfLabel"]]
 
