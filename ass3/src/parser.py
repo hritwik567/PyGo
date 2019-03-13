@@ -45,7 +45,7 @@ temp_array = [] #used to store the temporary varibles used to define an array
 
 def new_temp():
     global temp_ctr
-    print(inspect.stack()[1].function)
+    # print(inspect.stack()[1].function)
     temp_ctr += 1
     return "temp" + str(temp_ctr)
 
@@ -191,6 +191,10 @@ def p_source_file(p):
     p[0] = p[1]
     p[0].code += p[3].code
     p[0].code += p[4].code
+    print("-----------code-----------")
+    for i in p[0].code:
+        print(i)
+    print("-----------code-----------")
 
 ######################################################## SACRED #############################################################################
 def p_add_scope(p):
@@ -749,11 +753,6 @@ def p_function(p):
         p[0].code += [["param", i]]
     p[0].code += p[1].code + p[2].code + [["end", p[-2]]]
 
-    print("-----------code-----------")
-    for i in p[0].code:
-        print(i)
-    print("-----------code-----------")
-
 def p_function_body(p):
     '''function_body    : block'''
     p[0] = p[1]
@@ -940,9 +939,7 @@ def p_primary_expr(p):
             raise TypeError("Type " + p[0].type_list[0] + " not indexable")
         else:
             temp_v = p[0].place_list[0]
-        print("array", p[0].type_list)
         p[0].type_list = [["pointer", p[0].type_list[0][1], p[0].type_list[0][2]]]
-        print("array", p[0].type_list)
         temp_v1 = new_temp()
         temp_v2 = new_temp()
         p[0].code += [[temp_v1, "=", p[3].place_list[0], "int_*", p[0].type_list[0][2]], [temp_v2, "=", temp_v, "int_+", temp_v1]]
@@ -954,7 +951,6 @@ def p_primary_expr(p):
     elif p[2] == "(":
         if p[1].type_list[0] == "identifier":
             info = find_info(p[1].id_list[0], 0)
-            print("info", info)
             if info["type"] == "function":
                 p[0] = Node()
                 p[0].code += p[3].code
@@ -1017,8 +1013,6 @@ def p_expression(p):
         temp_v = new_temp()
         p[0] = Node()
         p[0].extra["size"] = max(p[1].extra["size"], p[3].extra["size"])
-        print("expression", p[1].code)
-        print("expression", p[3].code)
         if len(p[1].code) > 0 and len(p[3].code) > 0:
             if type(p[1].code[-1][-1]) == int and type(p[3].code[-1][-1]) == int:
                 p[0].code = p[1].code[:-1]
@@ -1053,7 +1047,14 @@ def p_expression(p):
                         p[0].type_list = ["string"]
                     else:
                         raise TypeError("Cannot do operation " + p[2] + " on string literal")
-                elif "int" in p[1].type_list[0]:
+                elif "bool" == p[1].type_list[0]:
+                    if p[2] == "&&" or p[2] == "||":
+                        p[0].place_list = [temp_v]
+                        p[0].code += [[temp_v, "=", p[1].place_list[0], "int_" + p[2], p[3].place_list[0]]]
+                        p[0].type_list = [p[1].type_list[0]]
+                    else:
+                        raise TypeError("Cannot do operation " + p[2] + " on bool literals")
+                elif "int" in p[1].type_list[0] or "byte" == p[1].type_list[0]:
                     if p[2] == "<<" or p[2] == ">>":
                         if "u" not in p[3].type_list[0]:
                             _temp_v = new_temp()
@@ -1097,7 +1098,6 @@ def p_unary_expr(p):
             #Hritvik these 2 statemnts should be written in the following order
             p[0].extra["size"] = p[0].type_list[0][2]
             p[0].type_list = [p[0].type_list[0][1]]
-            print("pointer", p[0].type_list)
             p[0].place_list = [temp_v]
     else:
         if p[1] == "!":
@@ -1320,7 +1320,6 @@ def p_assignment(p):
         typecast = ("float" in expr_type_list_key[i] and "int" in expr_type_list_val[i])
         typecast = typecast or (expr_type_list_key[i].startswith("int") and "int" in expr_type_list_val[i])
         typecast = typecast or (expr_type_list_key[i].startswith("uint") and "uint" in expr_type_list_val[i])
-        print("assignment", expr_type_list_key, expr_type_list_val)
         if expr_type_list_key[i] == expr_type_list_val[i] or typecast:
             p[0].code += [[expr_place_list_key[i], "=", expr_place_list_val[i]]]
         else:

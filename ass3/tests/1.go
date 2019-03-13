@@ -6,7 +6,7 @@ func foo(a int) int {
 		var t = a
 }
 
-type T struct {
+type P struct {
 	a int
 	b float64
 	c [3]int
@@ -14,6 +14,16 @@ type T struct {
 	e int
 	f float32
 }
+
+type T struct {
+	b float64
+	c [3]int
+	a type P
+	d float32
+	e int
+	f float32
+}
+
 
 func main() {
 	// var a float32 = 2
@@ -28,9 +38,13 @@ func main() {
 	// }
 	// c[1] = a
 	var d type T
+	d.a.c[2] = 4
 	d.c[0] = 3
 	var e [2][3][4]int
 	e[0][1][2] = 3
+	var l = true
+	var k = false
+	var t = l||k
 	// for {
 	// 	var x =3
 	// 	continue
