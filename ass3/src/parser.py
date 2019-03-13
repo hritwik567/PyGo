@@ -4,6 +4,7 @@ import sys
 import argparse
 import lexer
 import os
+import inspect
 from symbol_table import SymbolTable
 from node import Node
 tokens = lexer.tokens
@@ -44,6 +45,7 @@ sizeof["byte"] = 1; sizeof["bool"] = 1;
 
 def new_temp():
     global temp_ctr
+    print(inspect.stack()[1].function)
     temp_ctr += 1
     return "temp" + str(temp_ctr)
 
@@ -256,14 +258,14 @@ def p_type(p):
 def p_operand_name(p):
     '''operand_name : IDENT'''
     p[0] = Node()
-    if p[1] == "true" or p[1] == "false"
+    if p[1] == "true" or p[1] == "false":
         p[0].place_list = [temp_v]
         p[0].code = [[temp_v, "=", p[1]]]
         p[0].type_list = ["bool"]
         p[0].extra["size"] = 1
     else:
-    p[0].id_list = [p[1]]
-    p[0].type_list = ["identifier"]
+        p[0].id_list = [p[1]]
+        p[0].type_list = ["identifier"]
 
 def p_type_name(p):
     '''type_name    : TYPE IDENT'''
@@ -405,6 +407,7 @@ def p_parameters(p):
                     | LPAREN parameter_list comma_opt RPAREN'''
     if len(p) == 3:
         p[0] = Node()
+        p[0].extra["size"] = []
     else:
         p[0] = p[2]
 
@@ -472,13 +475,13 @@ def p_declaration(p):
     '''declaration  : const_decl
                     | type_decl
                     | var_decl'''
-    p[0] = mytuple(["declaration"] + p[1:])
+    p[0] = p[1]
 
 def p_top_level_decl(p):
     '''top_level_decl   : declaration
                         | function_decl
                         | method_decl'''
-    p[0] = mytuple(["top_level_decl"] + p[1:])
+    p[0] = p[1]
 
 def p_const_decl(p):
     '''const_decl   : CONST const_spec
@@ -535,9 +538,9 @@ def p_var_decl(p):
     '''var_decl : VAR var_spec
                 | VAR LPAREN var_spec_rep RPAREN'''
     if len(p) == 3:
-		p[0] = p[2]
-	else:
-		p[0] = p[3]
+        p[0] = p[2]
+    else:
+        p[0] = p[3]
 
 def p_var_spec_rep(p):
     '''var_spec_rep : var_spec_rep var_spec semicolon_opt
@@ -630,11 +633,7 @@ def p_function_decl(p):
     #In this function current scope is actually global
     global scopes, current_scope
     if len(p) == 6:
-        if in_scope(p[2]):
-            raise NameError("Function " + p[2] + " already defined")
-        else:
-            scopes[0].insert(p[2], "function")
-            p[0] = p[4]
+        p[0] = p[4]
     else:
         if in_scope("signature_" + p[2]):
             raise NameError("Signature " + p[2] + " already defined")
@@ -654,6 +653,8 @@ def p_function_name(p):
 
 def p_function(p):
     '''function : signature function_body'''
+    if in_scope(p[-2]):
+        raise NameError("Function " + p[-2] + " already defined")
     if in_scope("signature_" + p[-2]):
         info = scopes[0].find_info("signature_" + p[2])
         if info["parameter_type"] != p[1].type_list:
@@ -662,6 +663,7 @@ def p_function(p):
             raise TypeError("Prototype and Function return type don't match ", info["parameter_type"], p[1].extra["return_type"])
 
     temp_l = new_label()
+    scopes[0].insert(p[-2], "function")
     scopes[0].update(p[-2], p[1].type_list , "parameter_type")
     scopes[0].update(p[-2], p[1].id_list , "parameter_id")
     scopes[0].update(p[-2], p[1].extra["paramter_size"] , "parameter_size")
@@ -682,7 +684,12 @@ def p_function(p):
 
     p[0] = Node()
     p[0].code = [["label", temp_l], ["func", p[-2]]]
-    p[0].code += p[1].code + p[2].code
+    p[0].code += p[1].code + p[2].code + [["end", p[-2]]]
+
+    print("-----------code-----------")
+    for i in p[0].code:
+        print(i)
+    print("-----------code-----------")
 
 def p_function_body(p):
     '''function_body    : block'''
@@ -720,16 +727,17 @@ def p_basic_lit(p):
                     | FLOAT_LIT
                     | STRING_LIT '''
     #Add imaginary and rune lit
-    temp_v = new_temp()
     if type(p[1]) == Node:
         p[0] = p[1]
     elif type(p[1]) == float:
+        temp_v = new_temp()
         p[0] = Node()
         p[0].place_list = [temp_v]
         p[0].code = [[temp_v, "=", p[1]]]
         p[0].type_list = ["float32"]
         p[0].extra["size"] = 4
     else:
+        temp_v = new_temp()
         p[0] = Node()
         p[0].place_list = [temp_v]
         p[0].code = [[temp_v, "=", p[1]]]
@@ -754,12 +762,12 @@ def p_qualified_ident(p):
 def p_composite_lit(p):
     '''composite_lit    : literal_type literal_value'''
     p[0] = Node()
-    if "type" in p[1].type_list[0]:
+    #if "type" in p[1].type_list[0]:
         #TODO: check the type of all the elements of the struct
-    elif "slice" in p[1].type_list[0]:
+    #elif "slice" in p[1].type_list[0]:
         #TODO: check the type of all the elements they should be equal to p[1].extra["element_type"]
         #and set the length and capacity to number of elements
-    else:
+    #else:
         #TODO: check the type of all the elements they should be equal to p[1].extra["element_type"]
         #and the length should be less than  p[1].extra["element_length"]
         #and set the length to the number of elements and capacity to p[1].extra["element_length"]
@@ -905,28 +913,31 @@ def p_expression(p):
         temp_v = new_temp()
         p[0] = Node()
         p[0].extra["size"] = max(p[1].extra["size"], p[3].extra["size"])
-        if type(p[1].code[-1][-1]) == int and type(p[3].code[-1][-1]) == int:
-            p[0].code = p[1].code[:-1]
-            p[0].code += p[3].code[:-1]
-            p[0].code += [[temp_v, "=", eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
-            p[0].place_list = [temp_v]
-            if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
-                p[0].type_list = ["bool"]
-            else:
-                p[0].type_list = ["int"]
-        elif type(p[1].code[-1][-1]) == float or type(p[3].code[-1][-1]) == float:
-            p[0].code = p[1].code[:-1]
-            p[0].code += p[3].code[:-1]
-            p[0].place_list = [temp_v]
-            if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
+        print("expression", p[1].code)
+        print("expression", p[3].code)
+        if len(p[1].code) > 0 and len(p[3].code) > 0:
+            if type(p[1].code[-1][-1]) == int and type(p[3].code[-1][-1]) == int:
+                p[0].code = p[1].code[:-1]
+                p[0].code += p[3].code[:-1]
                 p[0].code += [[temp_v, "=", eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
-                p[0].type_list = ["float32"]
-            elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
                 p[0].place_list = [temp_v]
-                p[0].code += [[temp_v, "=", eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
-                p[0].type_list = ["bool"]
-            else:
-                raise TypeError("Cannot do operation " + p[2] + " on float literals")
+                if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                    p[0].type_list = ["bool"]
+                else:
+                    p[0].type_list = ["int"]
+            elif type(p[1].code[-1][-1]) == float or type(p[3].code[-1][-1]) == float:
+                p[0].code = p[1].code[:-1]
+                p[0].code += p[3].code[:-1]
+                p[0].place_list = [temp_v]
+                if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
+                    p[0].code += [[temp_v, "=", eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
+                    p[0].type_list = ["float32"]
+                elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                    p[0].place_list = [temp_v]
+                    p[0].code += [[temp_v, "=", eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
+                    p[0].type_list = ["bool"]
+                else:
+                    raise TypeError("Cannot do operation " + p[2] + " on float literals")
         else:
             p[0].code = p[1].code
             p[0].code += p[3].code
@@ -971,8 +982,8 @@ def p_unary_expr(p):
         if "identifier" == p[0].type_list[0]:
             info = find_info(p[0].id_list[0])
             if info["is_var"]:
-                p[0].type_list[0] = info["type"]
-                p[0].place_list[0] = info["temp"]
+                p[0].type_list = [info["type"]]
+                p[0].place_list = [info["temp"]]
                 p[0].extra["size"] = info["size"]
             else:
                 raise NameError("Variable " + p[0].id_list[0] + " not defined")
@@ -1078,16 +1089,19 @@ def p_identifier_list(p):
 
 def p_statement_list(p):
     '''statement_list   : statement_rep'''
-    p[0] = mytuple(["statement_list"] + p[1:])
+    p[0] = p[1]
 
 def p_statement_rep(p):
     '''statement_rep    : statement semicolon_opt statement_rep
                         | epsilon'''
-    p[0] = mytuple(["statement_rep"] + p[1:])
-
+    if len(p) == 4:
+        p[0] = Node()
+        p[0].code = p[1].code + p[3].code
+    else:
+        p[0] = p[1]
 def p_block(p):
     '''block    : LBRACE statement_list RBRACE'''
-    p[0] = mytuple(["block"] + p[1:])
+    p[0] = p[2]
 
 def p_conversion(p):
     '''conversion   : TYPECAST type_token LPAREN expression RPAREN'''
@@ -1131,7 +1145,7 @@ def p_statement(p):
                     | switch_stmt
                     | for_stmt
                     | defer_stmt'''
-    p[0] = mytuple(["statement"] + p[1:])
+    p[0] = p[1]
 
 def p_simple_stmt(p):
     '''simple_stmt  : epsilon
@@ -1139,7 +1153,7 @@ def p_simple_stmt(p):
                     | inc_dec_stmt
                     | assignment
                     | short_val_decl'''
-    p[0] = mytuple(["simple_stmt"] + p[1:])
+    p[0] = p[1]
 
 def p_labeled_stmt(p):
     '''labeled_stmt : label COLON statement'''
@@ -1184,9 +1198,9 @@ def p_assignment(p):
     # p[0].place_list = p[3].place_list
     expr_type_list_key = p[1].type_list
     expr_type_list_val = p[3].type_list
-	expr_place_list_key = p[1].place_list
+    expr_place_list_key = p[1].place_list
     expr_place_list_val = p[3].place_list
-	for i in range(len(expr_type_list_key)):
+    for i in range(len(expr_type_list_key)):
         typecast = ("float" in expr_type_list_key[i] and "int" in expr_type_list_val[i])
         typecast = typecast or (expr_type_list_key[i].startswith("int") and "int" in expr_type_list_val[i])
         typecast = typecast or (expr_type_list_key[i].startswith("uint") and "uint" in expr_type_list_val[i])
