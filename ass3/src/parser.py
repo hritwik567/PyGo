@@ -41,7 +41,7 @@ sizeof["uint8"] = 1; sizeof["uint16"] = 2; sizeof["uint32"] = 4; sizeof["uint"] 
 sizeof["int8"] = 1; sizeof["int16"] = 2; sizeof["int32"] = 4; sizeof["int"] = 4; sizeof["int64"] = 8;
 sizeof["float32"] = 4; sizeof["float64"] = 8;
 sizeof["byte"] = 1; sizeof["bool"] = 1;
-
+temp_array = [] #used to store the temporary varibles used to define an array
 
 def new_temp():
     global temp_ctr
@@ -396,10 +396,12 @@ def p_base_type(p):
 
 def p_signature(p):
     '''signature    : parameters result'''
+    global scopes, current_scope, temp_array
     p[0] = Node()
     p[0].id_list = p[1].id_list
     p[0].type_list = p[1].type_list
-    p[0].extra["paramter_size"] = p[1].extra["size"]
+    p[0].extra["parameter_size"] = p[1].extra["size"]
+    p[0].extra["parameter_temp"] = []
     if len(p[2].type_list) == 0:
         p[0].extra["return_type"] = ["void"]
         p[0].extra["return_id"] = [None]
@@ -407,8 +409,22 @@ def p_signature(p):
     else:
         p[0].extra["return_type"] = p[2].type_list
         p[0].extra["return_id"] = p[2].id_list
-        p[0].extra["return_size"] = p[2].extra["size"]
-
+        if type(p[2].extra["size"]) == list:
+            p[0].extra["return_size"] = p[2].extra["size"]
+        else:
+            p[0].extra["return_size"] = [p[2].extra["size"]]
+    if p[-3] == "func":
+        id_list = p[0].id_list
+        if len(id_list) != len(set(id_list)):
+            raise NameError("Variable already declared\n")
+        for i in range(len(id_list)):
+            temp_v = new_temp()
+            temp_array += [temp_v]
+            p[0].extra["parameter_temp"] += [temp_v]
+            scopes[current_scope].insert(id_list[i], p[0].type_list[i])
+            scopes[current_scope].update(id_list[i], p[0].extra["parameter_size"][i], "size")
+            scopes[current_scope].update(id_list[i], temp_v, "temp")
+            scopes[current_scope].update(id_list[i], True, "is_var")
 def p_result(p):
     '''result   : parameters
                 | type_list
@@ -587,9 +603,8 @@ def p_var_spec_rep(p):
 def p_var_spec(p):
     '''var_spec : identifier_list type expr_list_assign_opt
                 | identifier_list ASSIGN expression_list'''
-    global scopes, current_scope
+    global scopes, current_scope, temp_array
     p[0] = p[1]
-    p[0].code += p[3].code
     if p[2] == "=":
         if len(p[1].id_list) != len(p[3].place_list):
             raise ArithmeticError("Different Number of identifiers and Expression")
@@ -599,11 +614,20 @@ def p_var_spec(p):
         for i in range(len(p[1].id_list)):
             if scopes[current_scope].look_up(id_list[i]):
                 raise NameError("Variable " + id_list[i] + "already declared\n")
+            if p[3].place_list[i] in temp_array:
+                temp_v = new_temp()
+                p[0].code += [["decl", temp_v], [temp_v, "=", p[3].place_list[i]]]
+            else:
+                temp_v = p[3].place_list[i]
+                p[0].code += [["decl", temp_v]]
+            temp_array += [temp_v]
             scopes[current_scope].insert(id_list[i], expr_type_list[i])
             scopes[current_scope].update(id_list[i], p[3].extra["size"][i], "size")
-            scopes[current_scope].update(id_list[i], p[3].place_list[i], "temp")
+            scopes[current_scope].update(id_list[i], temp_v, "temp")
             scopes[current_scope].update(id_list[i], True, "is_var")
+        p[0].code += p[3].code
     else:
+        p[0].code += p[2].code
         if len(p[3].place_list) == 0:
             # not initialised with expressions
             id_list = p[1].id_list
@@ -611,11 +635,12 @@ def p_var_spec(p):
                 if scopes[current_scope].look_up(id_list[i]):
                     raise NameError("Variable " + id_list[i] + "already declared\n")
                 temp_v = new_temp()
+                temp_array += [temp_v]
                 scopes[current_scope].insert(id_list[i], p[2].type_list[0])
                 scopes[current_scope].update(id_list[i], p[2].extra["size"], "size")
                 scopes[current_scope].update(id_list[i], temp_v, "temp")
                 scopes[current_scope].update(id_list[i], True, "is_var")
-                p[0].code += p[2].code
+                p[0].code += [["decl", temp_v]]
         else:
             if len(p[1].id_list) != len(p[3].place_list):
                 raise ArithmeticError("Different Number of identifiers and Expressions\n")
@@ -629,14 +654,20 @@ def p_var_spec(p):
                 typecast = typecast or (p[2].type_list[0].startswith("int") and "int" in expr_type_list[i])
                 typecast = typecast or (p[2].type_list[0].startswith("uint") and "uint" in expr_type_list[i])
                 if p[2].type_list[0] == expr_type_list[i] or typecast:
+                    if p[3].place_list[i] in temp_array:
+                        temp_v = new_temp()
+                        p[0].code += [["decl", temp_v], [temp_v, "=", p[3].place_list[i]]]
+                    else:
+                        temp_v = p[3].place_list[i]
+                        p[0].code += [["decl", temp_v]]
+                    temp_array += [temp_v]
                     scopes[current_scope].insert(p[1].id_list[i], p[2].type_list[0])
                     scopes[current_scope].update(id_list[i], p[2].extra["size"], "size")
-                    scopes[current_scope].update(id_list[i], p[3].place_list[i], "temp")
+                    scopes[current_scope].update(id_list[i], temp_v, "temp")
                     scopes[current_scope].update(id_list[i], True, "is_var")
-                    p[0].code += p[2].code
                 else:
                     raise TypeError("Type mismatch for identifier:" + id_list[i])
-
+        p[0].code += p[3].code
 def p_expr_list_assign_opt(p):
     '''expr_list_assign_opt : ASSIGN expression_list
                             | epsilon'''
@@ -654,9 +685,16 @@ def p_short_val_decl(p):
     p[0].id_list += [p[1]]
     if scopes[current_scope].look_up(p[1]):
         raise NameError("Variable " + p[1] + "already declared\n")
+    if p[3].place_list[0] in temp_array:
+        temp_v = new_temp()
+        p[0].code += [["decl", temp_v], [temp_v, "=", p[3].place_list[0]]]
+    else:
+        temp_v = p[3].place_list[0]
+        p[0].code += [["decl", temp_v]]
+    temp_array += [temp_v]
     scopes[current_scope].insert(p[1], p[3].type_list[0])
     scopes[current_scope].update(p[1], p[3].extra["size"], "size")
-    scopes[current_scope].update(p[1], p[3].place_list[0], "temp")
+    scopes[current_scope].update(p[1], temp_v, "temp")
     scopes[current_scope].update(p[1], True, "is_var")
 
 def p_function_decl(p):
@@ -675,7 +713,7 @@ def p_function_decl(p):
             p[0] = p[4]
             scopes[0].update("signature_" + p[2], p[0].type_list , "parameter_type")
             scopes[0].update("signature_" + p[2], p[0].id_list , "parameter_id")
-            scopes[0].update("signature_" + p[2], p[0].extra["paramter_size"] , "parameter_size")
+            scopes[0].update("signature_" + p[2], p[0].extra["parameter_size"] , "parameter_size")
             scopes[0].update("signature_" + p[2], p[0].extra["return_type"] , "return_type")
             scopes[0].update("signature_" + p[2], p[0].extra["return_id"] , "return_id")
             scopes[0].update("signature_" + p[2], p[0].extra["return_size"] , "return_size")
@@ -686,12 +724,13 @@ def p_function_name(p):
 
 def p_function(p):
     '''function : signature function_body'''
+    global scopes, current_scope
     if in_scope(p[-2]):
         raise NameError("Function " + p[-2] + " already defined")
     if in_scope("signature_" + p[-2]):
         info = scopes[0].find_info("signature_" + p[2])
         if info["parameter_type"] != p[1].type_list:
-            raise TypeError("Prototype and Function paramter type don't match ", info["parameter_type"], p[1].type_list)
+            raise TypeError("Prototype and Function parameter type don't match ", info["parameter_type"], p[1].type_list)
         elif info["return_type"] != p[1].extra["return_type"]:
             raise TypeError("Prototype and Function return type don't match ", info["parameter_type"], p[1].extra["return_type"])
 
@@ -699,24 +738,16 @@ def p_function(p):
     scopes[0].insert(p[-2], "function")
     scopes[0].update(p[-2], p[1].type_list , "parameter_type")
     scopes[0].update(p[-2], p[1].id_list , "parameter_id")
-    scopes[0].update(p[-2], p[1].extra["paramter_size"] , "parameter_size")
+    scopes[0].update(p[-2], p[1].extra["parameter_size"] , "parameter_size")
     scopes[0].update(p[-2], p[1].extra["return_type"] , "return_type")
     scopes[0].update(p[-2], p[1].extra["return_id"] , "return_id")
     scopes[0].update(p[-2], p[1].extra["return_size"] , "return_size")
     scopes[0].update(p[-2], temp_l , "label")
 
-    id_list = p[1].id_list
-    if len(id_list) != len(set(id_list)):
-        raise NameError("Variable already declared\n")
-    for i in range(len(id_list)):
-        temp_v = new_temp()
-        scopes[current_scope].insert(id_list[i], p[1].type_list[i])
-        scopes[current_scope].update(id_list[i], p[1].extra["paramter_size"][i], "size")
-        scopes[current_scope].update(id_list[i], temp_v, "temp")
-        scopes[current_scope].update(id_list[i], True, "is_var")
-
     p[0] = Node()
     p[0].code = [["label", temp_l], ["func", p[-2]]]
+    for i in p[1].extra["parameter_temp"]:
+        p[0].code += [["param", i]]
     p[0].code += p[1].code + p[2].code + [["end", p[-2]]]
 
     print("-----------code-----------")
@@ -904,8 +935,26 @@ def p_primary_expr(p):
     # elif len(p) == 3:
     #     if p[1].id_list[0] == "identifier":
     elif p[2] == "(":
-        if p[1].id_list[0] == "identifier":
-            info = find_info(p[0].id_list[0], 0)
+        if p[1].type_list[0] == "identifier":
+            info = find_info(p[1].id_list[0], 0)
+            print("info", info)
+            if info["type"] == "function":
+                temp_v = new_temp()
+                p[0] = Node()
+                p[0].code += p[3].code
+                for i, j in enumerate(info["parameter_type"]):
+                    if p[3].type_list[i] == j and p[3].extra["size"][i] == info["parameter_size"][i]:
+                        p[0].code += [["push", p[3].place_list[i]]]
+                    else:
+                        raise TypeError("Function " + p[0].id_list[0] + " should not be called with type " + j + " at the index " + str(i))
+                p[0].code += [["goto", info["label"]], ["pop", sum(info["parameter_size"])]]
+                p[0].place_list = [temp_v]
+                p[0].type_list = [info["return_type"][0]]
+                p[0].extra["size"] = info["return_size"][0]
+            else:
+                raise NameError("Variable " + p[0].id_list[0] + " not defined")
+        else:
+            raise TypeError("Identifier of type " + p[1].id_list[0] + " not callable")
 
 def p_slice(p):
     '''slice    : LBRACK expression_opt COLON expression_opt RBRACK
@@ -1164,7 +1213,7 @@ def p_conversion(p):
 def p_comma_opt(p):
     '''comma_opt    : COMMA
                     | epsilon'''
-    p[0] = mytuple(["comma_opt"] + p[1:])
+    p[0] = p[1]
 
 ######################################################## SACRED #############################################################################
 
@@ -1269,7 +1318,6 @@ def p_if_stmt(p):
                 | IF expression add_scope block end_scope ELSE add_scope block end_scope
                 | IF expression add_scope block end_scope ELSE if_stmt'''
     # Need to test this once
-    #p[0] = mytuple(["if_stmt"] + p[1:])
     if p[2].type_list[0] != "bool":
         raise TypeError("The condition " + p[2] + " is not a boolean value")
     p[0] = Node()
