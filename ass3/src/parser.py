@@ -1283,6 +1283,10 @@ def p_for_stmt(p):
         p[0].code += p[2].code
         p[0].code += p[3].code
         p[0].code += p[4].code
+    else:
+        p[0].code += p[3].code
+        p[0].code += p[4].code
+        p[0].code += p[5].code
     
 def p_for_clause(p):
     '''for_clause   : init_stmt SEMICOLON condition_opt SEMICOLON post_stmt'''
@@ -1308,7 +1312,17 @@ def p_init_stmt(p):
 
 def p_condition(p):
     '''condition    : expression'''
-    p[0] = mytuple(["condition"] + p[1:])
+    #p[0] = mytuple(["condition"] + p[1:])
+    # TODO: Add condition statement for if
+    # Test "for" one
+    if p[1].type_list[0] != "bool":
+        raise TypeError("The condition " + p[1] + " is not a boolean value")
+    p[0] = Node()
+    if p[-2] == 'for':
+        p[0].code += p[-1].code
+        p[0].code += p[1].code
+        end_for_label = find_info("__EndFor")["value"]
+        p[0].code += ["if not " + p[0].place_list[0] + "then goto " + end_for_label]
 
 def p_condition_opt(p):
     '''condition_opt    : condition
