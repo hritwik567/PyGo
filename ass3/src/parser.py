@@ -202,9 +202,9 @@ def p_add_scope(p):
         for_label = "_for_" + new_label()
         end_for_label = "_end_" + for_label
         scopes[current_scope].insert(for_label, "label")
-        scopes[current_scope].update("__BeginFor", for_label, "value")
-        scopes[current_scope].update("__MidFor", for_label, "value")
-        scopes[current_scope].update("__EndFor", end_for_label, "value")
+        scopes[current_scope].insert("__BeginFor", for_label, "value")
+        scopes[current_scope].insert("__MidFor", for_label, "value")
+        scopes[current_scope].insert("__EndFor", end_for_label, "value")
         p[0].code += ["label, " + for_label]
 
 def p_end_scope(p):
@@ -1276,7 +1276,7 @@ def p_for_stmt(p):
                 | FOR add_scope condition block end_scope
                 | FOR add_scope for_clause block end_scope'''
                 #| FOR add_scope range_clause block end_scope'''
-    # Leaving out range clause for now
+    # TODO: Leaving out range clause for now, maybe add later
     #p[0] = mytuple(["for_stmt"] + p[1:])
     p[0] = Node()
     if len(p) == 5:
@@ -1292,7 +1292,22 @@ def p_for_clause(p):
     '''for_clause   : init_stmt SEMICOLON condition_opt SEMICOLON post_stmt'''
     # Ayush changed this because earlier case allowed a wrond for format to be correctly parsed
     # Suppose init_stmt -> simple_stmt and post_init_stmt -> epsilon (wrong)
-    p[0] = mytuple(["for_clause"] + p[1:])
+    #p[0] = mytuple(["for_clause"] + p[1:])
+    p[0] = Node()
+    if not p[1].code == []:
+        p[0].code += p[1].code
+
+    p[0].code += p[-1].code
+    if not p[3].code == []:
+        p[0].code += p[3].code
+        end_for_label = find_info("__EndFor")["value"]
+        p[0].code += ["if not " + p[3].place_list[0] + "then goto " + end_for_label]
+
+    if not p[5].code == []:
+        mid_for_label = "_mid_" + find_info("__BeginFor")["value"]
+        scopes[current_scope].update("__MidFor", mid_for_label, "value")
+        p[0].code += ["label, " + mid_for_label]
+        p[0].code += p[5].code
 
 # def p_post_init_stmt(p):
 #     '''post_init_stmt    : SEMICOLON condition_opt SEMICOLON post_stmt
@@ -1317,12 +1332,16 @@ def p_condition(p):
     # Test "for" one
     if p[1].type_list[0] != "bool":
         raise TypeError("The condition " + p[1] + " is not a boolean value")
-    p[0] = Node()
     if p[-2] == 'for':
+        p[0] = Node()
         p[0].code += p[-1].code
         p[0].code += p[1].code
         end_for_label = find_info("__EndFor")["value"]
-        p[0].code += ["if not " + p[0].place_list[0] + "then goto " + end_for_label]
+        p[0].code += ["if not " + p[1].place_list[0] + "then goto " + end_for_label]
+
+    # General case
+    else:
+        p[0] = p[1]
 
 def p_condition_opt(p):
     '''condition_opt    : condition
