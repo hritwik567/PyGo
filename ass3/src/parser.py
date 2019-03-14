@@ -201,7 +201,19 @@ def p_source_file(p):
 def p_add_scope(p):
     '''add_scope    :'''
     add_scope()
-    if p[-1] == 'for':
+    if p[-2] == "func":
+        if in_scope(p[-1]):
+            raise NameError("Function " + p[-1] + " already defined")
+        p[0] = Node()
+        func_label = "_func_" + p[-1]
+        end_func_label = "_end_" + func_label
+        scopes[0].insert(p[-1], "function")
+        scopes[0].update(p[-1], func_label, "label")
+        scopes[current_scope].insert("__FuncName", p[-1], "value")
+        scopes[current_scope].insert("__EndFuncLabel", end_func_label, "value")
+        p[0].code += [["label", func_label]]
+
+    elif p[-1] == "for":
         p[0] = Node()
         for_label = "_for_" + new_label()
         end_for_label = "_end_" + for_label
@@ -211,7 +223,7 @@ def p_add_scope(p):
         scopes[current_scope].insert("__EndFor", end_for_label, "value")
         p[0].code += [["label", for_label]]
 
-    elif p[-2] == 'if':
+    elif p[-2] == "if":
         p[0] = Node()
         temp_label = new_label()
         else_label = "_else_" + temp_label
@@ -220,7 +232,7 @@ def p_add_scope(p):
         scopes[current_scope].insert("__EndIf", end_if_label, "value")
         p[0].code += [["if not", p[-1].place_list[0], "then goto", else_label]]
 
-    elif p[-2] == 'switch':
+    elif p[-2] == "switch":
         temp_label = new_label()
         end_switch_label = "_end_switch_" + temp_label
         scopes[current_scope].insert("__Switch", temp_label, "value")
@@ -232,14 +244,19 @@ def p_add_scope(p):
 
 def p_end_scope(p):
     '''end_scope    :'''
-    if p[-3] == 'for' or p[-4] == 'for':
+    if p[-4] == "func":
+        p[0] = Node()
+        end_func_label = find_info("__EndFuncLabel", current_scope)["value"]
+        p[0].code += [["label", end_func_label]]
+
+    elif p[-3] == "for" or p[-4] == "for":
         p[0] = Node()
         for_label = find_info("__BeginFor", current_scope)["value"]
         end_for_label = "_end_" + for_label
         p[0].code += [["goto", for_label]]
         p[0].code += [["label", end_for_label]]
 
-    elif p[-4] == 'if':
+    elif p[-4] == "if":
         p[0] = Node()
         else_label = find_info("__Else", current_scope)["value"]
         end_if_label = find_info("__EndIf", current_scope)["value"]
@@ -247,7 +264,7 @@ def p_end_scope(p):
         p[0].code += [["label", else_label]]
         p[0].extra["EndIfLabel"] = end_if_label
 
-    elif p[-6] == 'switch':
+    elif p[-6] == "switch":
         p[0] = Node()
         end_switch_label = find_info("__EndSwitch", current_scope)["value"]
         p[0].code += [["label", end_switch_label]]
@@ -419,9 +436,11 @@ def p_signature(p):
         p[0].extra["return_type"] = ["void"]
         p[0].extra["return_id"] = [None]
         p[0].extra["return_size"] = [0]
+        p[0].extra["return_temp"] = []
     else:
         p[0].extra["return_type"] = p[2].type_list
         p[0].extra["return_id"] = p[2].id_list
+        p[0].extra["return_temp"] = []
         if type(p[2].extra["size"]) == list:
             p[0].extra["return_size"] = p[2].extra["size"]
         else:
@@ -438,6 +457,29 @@ def p_signature(p):
             scopes[current_scope].update(id_list[i], p[0].extra["parameter_size"][i], "size")
             scopes[current_scope].update(id_list[i], temp_v, "temp")
             scopes[current_scope].update(id_list[i], True, "is_var")
+
+        id_list = p[0].extra["return_id"]
+        for i in range(len(id_list)):
+            if id_list[i] == None:
+                p[0].extra["return_temp"] += [None]
+                continue
+            if id_list[i] in p[0].extra["parameter_temp"] or id_list[i] in p[0].extra["return_temp"]:
+                raise NameError("Variable " + id_list[i] + " already declared")
+            temp_v = new_temp()
+            temp_array += [temp_v]
+            p[0].extra["return_temp"] += [temp_v]
+            scopes[current_scope].insert(id_list[i], p[0].extra["return_type"][i])
+            scopes[current_scope].update(id_list[i], p[0].extra["return_size"][i], "size")
+            scopes[current_scope].update(id_list[i], temp_v, "temp")
+            scopes[current_scope].update(id_list[i], True, "is_var")
+
+        scopes[0].update(p[-2], p[0].type_list , "parameter_type")
+        scopes[0].update(p[-2], p[0].id_list , "parameter_id")
+        scopes[0].update(p[-2], p[0].extra["parameter_size"] , "parameter_size")
+        scopes[0].update(p[-2], p[0].extra["return_type"] , "return_type")
+        scopes[0].update(p[-2], p[0].extra["return_id"] , "return_id")
+        scopes[0].update(p[-2], p[0].extra["return_size"] , "return_size")
+
 def p_result(p):
     '''result   : parameters
                 | type_list
@@ -626,7 +668,7 @@ def p_var_spec(p):
         expr_type_list = p[3].type_list
         for i in range(len(p[1].id_list)):
             if scopes[current_scope].look_up(id_list[i]):
-                raise NameError("Variable " + id_list[i] + "already declared\n")
+                raise NameError("Variable " + id_list[i] + " already declared\n")
             if expr_type_list[i] == "void":
                 raise TypeError("Cannot assign type void")
             if p[3].place_list[i] in temp_array:
@@ -697,7 +739,7 @@ def p_short_val_decl(p):
     '''short_val_decl   : IDENT DEFINE expression'''
     # '''short_val_decl   : identifier_list DEFINE expression_list'''
     # Arpit: mutiple identifiers can be defined
-    global scopes, current_scope
+    global scopes, current_scope, temp_array
     p[0] = p[3]
     p[0].id_list += [p[1]]
     if scopes[current_scope].look_up(p[1]):
@@ -706,10 +748,10 @@ def p_short_val_decl(p):
         raise TypeError("Cannot assign type void")
     if p[3].place_list[0] in temp_array:
         temp_v = new_temp()
-        p[0].code += [["decl", temp_v], [temp_v, "=", p[3].place_list[0]]]
+        p[0].code = [["decl", temp_v], [temp_v, "=", p[3].place_list[0]]] + p[0].code
     else:
         temp_v = p[3].place_list[0]
-        p[0].code += [["decl", temp_v]]
+        p[0].code = [["decl", temp_v]] + p[0].code
     temp_array += [temp_v]
     scopes[current_scope].insert(p[1], p[3].type_list[0])
     scopes[current_scope].update(p[1], p[3].extra["size"], "size")
@@ -724,6 +766,7 @@ def p_function_decl(p):
     global scopes, current_scope
     if len(p) == 6:
         p[0] = p[4]
+        p[0].code = p[3].code + p[0].code + p[5].code
     else:
         if in_scope("signature_" + p[2]):
             raise NameError("Signature " + p[2] + " already defined")
@@ -744,8 +787,6 @@ def p_function_name(p):
 def p_function(p):
     '''function : signature function_body'''
     global scopes, current_scope
-    if in_scope(p[-2]):
-        raise NameError("Function " + p[-2] + " already defined")
     if in_scope("signature_" + p[-2]):
         info = scopes[0].find_info("signature_" + p[2])
         if info["parameter_type"] != p[1].type_list:
@@ -753,21 +794,13 @@ def p_function(p):
         elif info["return_type"] != p[1].extra["return_type"]:
             raise TypeError("Prototype and Function return type don't match ", info["parameter_type"], p[1].extra["return_type"])
 
-    temp_l = new_label()
-    scopes[0].insert(p[-2], "function")
-    scopes[0].update(p[-2], p[1].type_list , "parameter_type")
-    scopes[0].update(p[-2], p[1].id_list , "parameter_id")
-    scopes[0].update(p[-2], p[1].extra["parameter_size"] , "parameter_size")
-    scopes[0].update(p[-2], p[1].extra["return_type"] , "return_type")
-    scopes[0].update(p[-2], p[1].extra["return_id"] , "return_id")
-    scopes[0].update(p[-2], p[1].extra["return_size"] , "return_size")
-    scopes[0].update(p[-2], temp_l , "label")
-
     p[0] = Node()
-    p[0].code = [["label", temp_l], ["func", p[-2]]]
     for i in p[1].extra["parameter_temp"]:
         p[0].code += [["param", i]]
-    p[0].code += p[1].code + p[2].code + [["end", p[-2]]]
+    for i in p[1].extra["return_temp"]:
+        if i!= None:
+            p[0].code += [["decl", i]]
+    p[0].code += p[1].code + p[2].code
 
 def p_function_body(p):
     '''function_body    : block'''
@@ -1453,7 +1486,7 @@ def p_expr_switch_case(p):
                 p[0].code += [[new_temp_var, " = ", var_list[0], "|", var_list[1]]]
                 var_list = [new_temp_var] + var_list[2:]
             p[0].code += [["if not", var_list[0], "then goto", next_label]]
-    
+
     else:
         if scopes[current_scope].look_up("default"):
             raise SyntaxError("Multiple defaults declared in switch statement!")
@@ -1543,17 +1576,34 @@ def p_range_clause(p):
 def p_return_stmt(p):
     '''return_stmt  : RETURN
                     | RETURN expression_list'''
-    p[0] = mytuple(["return_stmt"] + p[1:])
+    global scopes, current_scope
+    p[0] = Node()
+    func_name = find_info("__FuncName", current_scope)["value"]
+    info = find_info(func_name, 0)
+    print("return ", info)
+    if len(p) == 2:
+        if info["return_type"][0] == "void":
+            p[0].code += [["return"]]
+        elif info["return_temp"][0] != None:
+            p[0].code += [["return", info["return_temp"][0]]]
+        else:
+            raise TypeError("Return type is not void")
+    else:
+        p[0].code += p[2].code
+        if info["return_type"][0] == p[2].type_list[0]:
+            p[0].code += [["return", p[2].place_list[0]]]
+        else:
+            raise TypeError("Return type " + info["return_type"][0] + " does not match " + p[2].type_list[0])
 
 def p_fallthrough_stmt(p):
     '''fallthrough_stmt : FALLTHROUGH'''
     p[0] = Node()
-    p[0].code += ["fallthrough"] #TODO: WTF is this
+    p[0].code += [["fallthrough"]] #TODO: WTF is this
 
 def p_defer_stmt(p):
    '''defer_stmt  : DEFER expression'''
    p[0] = Node()
-   p[0].code += ["defer"] + p[2].code #TODO: WTF is this
+   p[0].code += p[2].code + [["defer", p[2].place_list[0]]] #TODO: WTF is this
 
 def p_goto_stmt(p):
     '''goto_stmt  : GOTO label'''
