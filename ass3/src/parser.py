@@ -432,6 +432,7 @@ def p_signature(p):
     p[0].type_list = p[1].type_list
     p[0].extra["parameter_size"] = p[1].extra["size"]
     p[0].extra["parameter_temp"] = []
+    p[0].extra["scope"] = current_scope
     if len(p[2].type_list) == 0:
         p[0].extra["return_type"] = ["void"]
         p[0].extra["return_id"] = [None]
@@ -763,7 +764,7 @@ def p_function_decl(p):
                         | FUNC function_name add_scope signature end_scope semicolon_opt'''
     #TODO: verify whether we need to add scope at the time of signature declaration
     #In this function current scope is actually global
-    global scopes, current_scope
+    global scopes, current_scope, scopes_ctr, temp_ctr, temp_array
     if len(p) == 6:
         p[0] = p[4]
         p[0].code = p[3].code + p[0].code + p[5].code
@@ -771,6 +772,12 @@ def p_function_decl(p):
         if in_scope("signature_" + p[2]):
             raise NameError("Signature " + p[2] + " already defined")
         else:
+            scopes[0].delete(p[2])
+            scopes_ctr -= 1
+            temp_ctr -= len(p[4].extra["parameter_temp"]) + sum([i!=None for i in p[4].extra["return_temp"]])
+            temp_array = [x for x in temp_array if x not in p[4].extra["parameter_temp"]]
+            temp_array = [x for x in temp_array if x not in p[4].extra["return_temp"]]
+            del scopes[p[4].extra["scope"]]
             scopes[0].insert("signature_" + p[2], "signature")
             p[0] = p[4]
             scopes[0].update("signature_" + p[2], p[0].type_list , "parameter_type")
@@ -788,7 +795,7 @@ def p_function(p):
     '''function : signature function_body'''
     global scopes, current_scope
     if in_scope("signature_" + p[-2]):
-        info = scopes[0].find_info("signature_" + p[2])
+        info = scopes[0].get_info("signature_" + p[-2])
         if info["parameter_type"] != p[1].type_list:
             raise TypeError("Prototype and Function parameter type don't match ", info["parameter_type"], p[1].type_list)
         elif info["return_type"] != p[1].extra["return_type"]:
