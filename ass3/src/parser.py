@@ -674,10 +674,9 @@ def p_var_spec(p):
                 raise TypeError("Cannot assign type void")
             if p[3].place_list[i] in temp_array:
                 temp_v = new_temp()
-                p[0].code += [["decl", temp_v], [temp_v, "=", p[3].place_list[i]]]
+                p[0].code += [["=", temp_v, p[3].place_list[i]]]
             else:
                 temp_v = p[3].place_list[i]
-                p[0].code += [["decl", temp_v]]
             temp_array += [temp_v]
             scopes[current_scope].insert(id_list[i], expr_type_list[i])
             scopes[current_scope].update(id_list[i], p[3].extra["size"][i], "size")
@@ -698,7 +697,6 @@ def p_var_spec(p):
                 scopes[current_scope].update(id_list[i], p[2].extra["size"], "size")
                 scopes[current_scope].update(id_list[i], temp_v, "temp")
                 scopes[current_scope].update(id_list[i], True, "is_var")
-                p[0].code += [["decl", temp_v]]
         else:
             if len(p[1].id_list) != len(p[3].place_list):
                 raise ArithmeticError("Different Number of identifiers and Expressions\n")
@@ -716,10 +714,9 @@ def p_var_spec(p):
                 if p[2].type_list[0] == expr_type_list[i] or typecast:
                     if p[3].place_list[i] in temp_array:
                         temp_v = new_temp()
-                        p[0].code += [["decl", temp_v], [temp_v, "=", p[3].place_list[i]]]
+                        p[0].code += [["=", temp_v, p[3].place_list[i]]]
                     else:
                         temp_v = p[3].place_list[i]
-                        p[0].code += [["decl", temp_v]]
                     temp_array += [temp_v]
                     scopes[current_scope].insert(p[1].id_list[i], p[2].type_list[0])
                     scopes[current_scope].update(id_list[i], p[2].extra["size"], "size")
@@ -749,10 +746,9 @@ def p_short_val_decl(p):
         raise TypeError("Cannot assign type void")
     if p[3].place_list[0] in temp_array:
         temp_v = new_temp()
-        p[0].code = [["decl", temp_v], [temp_v, "=", p[3].place_list[0]]] + p[0].code
+        p[0].code = [["=", temp_v, p[3].place_list[0]]] + p[0].code
     else:
         temp_v = p[3].place_list[0]
-        p[0].code = [["decl", temp_v]] + p[0].code
     temp_array += [temp_v]
     scopes[current_scope].insert(p[1], p[3].type_list[0])
     scopes[current_scope].update(p[1], p[3].extra["size"], "size")
@@ -802,11 +798,6 @@ def p_function(p):
             raise TypeError("Prototype and Function return type don't match ", info["parameter_type"], p[1].extra["return_type"])
 
     p[0] = Node()
-    for i in p[1].extra["parameter_temp"]:
-        p[0].code += [["param", i]]
-    for i in p[1].extra["return_temp"]:
-        if i!= None:
-            p[0].code += [["decl", i]]
     p[0].code += p[1].code + p[2].code
 
 def p_function_body(p):
@@ -853,21 +844,21 @@ def p_basic_lit(p):
         temp_v = new_temp()
         p[0] = Node()
         p[0].place_list = [temp_v]
-        p[0].code = [[temp_v, "=", p[1]]]
+        p[0].code = [["=", temp_v, p[1]]]
         p[0].type_list = ["bool"]
         p[0].extra["size"] = 1
     elif type(p[1]) == float:
         temp_v = new_temp()
         p[0] = Node()
         p[0].place_list = [temp_v]
-        p[0].code = [[temp_v, "=", p[1]]]
+        p[0].code = [["=", temp_v, p[1]]]
         p[0].type_list = ["float32"]
         p[0].extra["size"] = 4
     else:
         temp_v = new_temp()
         p[0] = Node()
         p[0].place_list = [temp_v]
-        p[0].code = [[temp_v, "=", p[1]]]
+        p[0].code = [["=", temp_v, p[1]]]
         p[0].type_list = ["string"]
 
 def p_int_lit(p):
@@ -877,7 +868,7 @@ def p_int_lit(p):
     temp_v = new_temp()
     p[0] = Node()
     p[0].place_list = [temp_v]
-    p[0].code = [[temp_v, "=", p[1]]]
+    p[0].code = [["=", temp_v, p[1]]]
     p[0].type_list = ["int"]
     p[0].extra["size"] = 4
 
@@ -955,7 +946,7 @@ def p_primary_expr(p):
             info = find_info(p[0].id_list[0])
             if info["is_var"]:
                 temp_v = new_temp()
-                p[0].code += [[temp_v, "=", "(addr)", info["temp"]]]
+                p[0].code += [["=", temp_v, "(addr)", info["temp"]]]
                 info1 = find_info(info["type"], 0)
             else:
                 raise NameError("Variable " + p[0].id_list[0] + " not defined")
@@ -980,7 +971,7 @@ def p_primary_expr(p):
             info = find_info(p[0].id_list[0])
             if info["is_var"]:
                 temp_v = new_temp()
-                p[0].code += [[temp_v, "=", "(addr)", info["temp"]]]
+                p[0].code += [["=", temp_v, "(addr)", info["temp"]]]
                 p[0].type_list = [info["type"]]
                 p[0].extra["size"] = info["size"]
             else:
@@ -998,7 +989,7 @@ def p_primary_expr(p):
         p[0].type_list = [["pointer", p[0].type_list[0][1], p[0].type_list[0][2]]]
         temp_v1 = new_temp()
         temp_v2 = new_temp()
-        p[0].code += [[temp_v1, "=", p[3].place_list[0], "int_*", p[0].type_list[0][2]], [temp_v2, "=", temp_v, "int_+", temp_v1]]
+        p[0].code += [["int_*", temp_v1, p[3].place_list[0], p[0].type_list[0][2]], ["int_+", temp_v2, temp_v, temp_v1]]
         p[0].place_list = [temp_v2]
         p[0].extra["size"] = 4
     #TODO: Hritvik not implementing slice for now
@@ -1018,7 +1009,7 @@ def p_primary_expr(p):
                 p[0].code += [["goto", info["label"]]]
                 if info["return_type"][0] != "void":
                     temp_v = new_temp()
-                    p[0].code += [["return_value", "=", temp_v]]
+                    p[0].code += [["=", temp_v, "return_value"]]
                 else:
                     temp_v = "temp_void"
                 p[0].code += [["pop", sum(info["parameter_size"])]]
@@ -1073,7 +1064,7 @@ def p_expression(p):
             if type(p[1].code[-1][-1]) == int and type(p[3].code[-1][-1]) == int:
                 p[0].code = p[1].code[:-1]
                 p[0].code += p[3].code[:-1]
-                p[0].code += [[temp_v, "=", eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
+                p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
                 p[0].place_list = [temp_v]
                 if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
                     p[0].type_list = ["bool"]
@@ -1084,11 +1075,11 @@ def p_expression(p):
                 p[0].code += p[3].code[:-1]
                 p[0].place_list = [temp_v]
                 if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
-                    p[0].code += [[temp_v, "=", eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
+                    p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
                     p[0].type_list = ["float32"]
                 elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
                     p[0].place_list = [temp_v]
-                    p[0].code += [[temp_v, "=", eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
+                    p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
                     p[0].type_list = ["bool"]
                 else:
                     raise TypeError("Cannot do operation " + p[2] + " on float literals")
@@ -1099,14 +1090,14 @@ def p_expression(p):
                 if p[1].type_list[0] == "string":
                     if p[2] == "+":
                         p[0].place_list = [temp_v]
-                        p[0].code += [[temp_v, "=", "concat", p[1].place_list[0], p[3].place_list[0]]]
+                        p[0].code += [["concat", temp_v, p[1].place_list[0], p[3].place_list[0]]]
                         p[0].type_list = ["string"]
                     else:
                         raise TypeError("Cannot do operation " + p[2] + " on string literal")
                 elif "bool" == p[1].type_list[0]:
                     if p[2] == "&&" or p[2] == "||":
                         p[0].place_list = [temp_v]
-                        p[0].code += [[temp_v, "=", p[1].place_list[0], "int_" + p[2], p[3].place_list[0]]]
+                        p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                         p[0].type_list = [p[1].type_list[0]]
                     else:
                         raise TypeError("Cannot do operation " + p[2] + " on bool literals")
@@ -1114,9 +1105,9 @@ def p_expression(p):
                     if p[2] == "<<" or p[2] == ">>":
                         if "u" not in p[3].type_list[0]:
                             _temp_v = new_temp()
-                            p[0].code += [[_temp_v, "=", "(uint)", p[3].place_list[0]]]
+                            p[0].code += [["=", temp_v, "(uint)", p[3].place_list[0]]]
                     p[0].place_list = [temp_v]
-                    p[0].code += [[temp_v, "=", p[1].place_list[0], "int_" + p[2], p[3].place_list[0]]]
+                    p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                     if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
                         p[0].type_list = ["bool"]
                     else:
@@ -1124,11 +1115,11 @@ def p_expression(p):
                 elif "float" in p[1].type_list[0]:
                     if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
                         p[0].place_list = [temp_v]
-                        p[0].code += [[temp_v, "=", p[1].place_list[0], "float_" + p[2], p[3].place_list[0]]]
+                        p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                         p[0].type_list = [p[1].type_list[0]]
                     elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
                         p[0].place_list = [temp_v]
-                        p[0].code += [[temp_v, "=", p[1].place_list[0], "float_" + p[2], p[3].place_list[0]]]
+                        p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                         p[0].type_list = ["bool"]
                     else:
                         raise TypeError("Cannot do operation " + p[2] + " on float literals")
@@ -1150,7 +1141,7 @@ def p_unary_expr(p):
                 raise NameError("Variable " + p[0].id_list[0] + " not defined")
         elif "pointer" in p[0].type_list[0]:
             temp_v = new_temp()
-            p[0].code += [[temp_v, "=", "(load)", p[0].place_list[0]]]
+            p[0].code += [["=", temp_v, "(load)", p[0].place_list[0]]]
             #Hritvik these 2 statemnts should be written in the following order
             p[0].extra["size"] = p[0].type_list[0][2]
             p[0].type_list = [p[0].type_list[0][1]]
@@ -1160,7 +1151,7 @@ def p_unary_expr(p):
             if "int" in p[2].type_list[0] or p[2].type_list[0] == "bool" or p[2].type_list[0] == "byte" :
                 p[0] = p[2]
                 temp_v = new_temp()
-                p[0].code += [[temp_v, "=", "!", p[2].place_list[0]]]
+                p[0].code += [["=", temp_v, "!", p[2].place_list[0]]]
                 p[0].place_list = [temp_v]
             else:
                 raise TypeError("Type Mismatch with unary operator" + p[1])
@@ -1180,8 +1171,8 @@ def p_unary_expr(p):
                     type_v = "float"
                 temp_v1 = new_temp()
                 temp_v2 = new_temp()
-                p[0].code += [[temp_v1, "=", "0"]]
-                p[0].code += [[temp_v2, "=", temp_v1, type_v + "_" + p[1], p[2].place_list[0]]]
+                p[0].code += [["=", temp_v1, "0"]]
+                p[0].code += [[type_v + "_" + p[1], temp_v2, temp_v1, p[2].place_list[0]]]
                 p[0].place_list = [temp_v2]
             else:
                 raise TypeError("Type Mismatch with unary operator" + p[1])
@@ -1190,7 +1181,7 @@ def p_unary_expr(p):
             if p[2].type_list[0][0] == "pointer":
                 p[0] = p[2]
                 temp_v = new_temp()
-                p[0].code += [[temp_v, "=", "(load)", p[2].place_list[0]]]
+                p[0].code += [["=", temp_v, "(load)", p[2].place_list[0]]]
                 p[0].type_list = p[2].type_list[0][1]
                 p[0].size = p[2].type_list[0][2]
                 p[0].place_list = [temp_v]
@@ -1200,7 +1191,7 @@ def p_unary_expr(p):
         if p[1] == "&":
             p[0] = p[2]
             temp_v = new_temp()
-            p[0].code += [[temp_v, "=", "(addr)", p[2].place_list[0]]]
+            p[0].code += [["=", temp_v, "(addr)", p[2].place_list[0]]]
             p[0].type_list = [["pointer", p[2].type_list[0], p[2].extra["size"]]]
             p[0].place_list = [temp_v]
 
@@ -1279,14 +1270,14 @@ def p_conversion(p):
     if "int" in p[2].type_list[0] and "int" in p[4].type_list[0]:
         temp_v = new_temp()
         type = "(" + p[4].type_list[0] + ")"
-        p[0].code += [[temp_v, "=", type, p[4].place_list[0]]]
+        p[0].code += [["=", temp_v, type, p[4].place_list[0]]]
         p[0].place_list = [temp_v]
         p[0].type_list = [p[4].type_list[0]]
 
     if ("int" in p[2].type_list[0] or "float" in p[2].type_list[0]) and "float" in p[4].type_list[0]:
         temp_v = new_temp()
         type = "(" + p[4].type_list[0] + ")"
-        p[0].code += [[temp_v, "=", type, p[4].place_list[0]]]
+        p[0].code += [["=", temp_v, type, p[4].place_list[0]]]
         p[0].place_list = [temp_v]
         p[0].type_list = [p[4].type_list[0]]
 
@@ -1354,7 +1345,7 @@ def p_inc_dec_stmt(p):
         type_v = ""
 
     if type_v != "":
-        p[0].code += [[temp_v, "=", p[0].place_list[0], type_v + "_" + p[2][1], "1"]]
+        p[0].code += [[type_v + "_" + p[2][1], temp_v, p[0].place_list[0], "1"]]
         p[0].place_list = [temp_v]
     else:
         raise TypeError("Can't do " + p[2] + " operation on type " + p[0].type_list[0])
@@ -1377,7 +1368,7 @@ def p_assignment(p):
         typecast = typecast or (expr_type_list_key[i].startswith("int") and "int" in expr_type_list_val[i])
         typecast = typecast or (expr_type_list_key[i].startswith("uint") and "uint" in expr_type_list_val[i])
         if expr_type_list_key[i] == expr_type_list_val[i] or typecast:
-            p[0].code += [[expr_place_list_key[i], "=", expr_place_list_val[i]]]
+            p[0].code += [["=", expr_place_list_key[i], expr_place_list_val[i]]]
         else:
             raise TypeError("Type mismatch for identifier " + expr_place_list_key[i])
 
@@ -1414,7 +1405,7 @@ def p_if_stmt(p):
     elif len(p) == 10:
         p[0].code += p[8].code
 
-    p[0].code += ["label, " + p[5].extra["EndIfLabel"]]
+    p[0].code += [["label", p[5].extra["EndIfLabel"]]]
 
 def p_switch_stmt(p):
     '''switch_stmt  : expr_switch_stmt'''
