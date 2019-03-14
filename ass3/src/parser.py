@@ -1335,7 +1335,6 @@ def p_inc_dec_stmt(p):
     '''inc_dec_stmt : expression INC
                     | expression DEC'''
     p[0] = p[1]
-    temp_v = new_temp()
 
     if "int" in p[0].type_list[0]:
         type_v = "int"
@@ -1345,8 +1344,7 @@ def p_inc_dec_stmt(p):
         type_v = ""
 
     if type_v != "":
-        p[0].code += [[type_v + "_" + p[2][1], temp_v, p[0].place_list[0], "1"]]
-        p[0].place_list = [temp_v]
+        p[0].code += [[type_v + "_" + p[2][1], p[0].place_list[0], p[0].place_list[0], "1"]]
     else:
         raise TypeError("Can't do " + p[2] + " operation on type " + p[0].type_list[0])
 
