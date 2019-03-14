@@ -5,6 +5,7 @@ import argparse
 import lexer
 import os
 import inspect
+import copy
 from symbol_table import SymbolTable
 from node import Node
 tokens = lexer.tokens
@@ -219,6 +220,16 @@ def p_add_scope(p):
         scopes[current_scope].insert("__EndIf", end_if_label, "value")
         p[0].code += [["if not", p[-1].place_list[0], "then goto", else_label]]
 
+    elif p[-2] == 'switch':
+        temp_label = new_label()
+        end_switch_label = "_end_switch_" + temp_label
+        scopes[current_scope].insert("__Switch", temp_label, "value")
+        scopes[current_scope].insert("__EndSwitch", end_switch_label, "value")
+        scopes[current_scope].add_extra("label_ctr", 1)
+        if not p[-1].code == []:
+            scopes[current_scope].add_extra("switch_expr_type", p[-1].type_list[0])
+            scopes[current_scope].add_extra("switch_expr_var", p[-1].place_list[0])
+
 def p_end_scope(p):
     '''end_scope    :'''
     if p[-3] == 'for' or p[-4] == 'for':
@@ -228,13 +239,18 @@ def p_end_scope(p):
         p[0].code += [["goto", for_label]]
         p[0].code += [["label", end_for_label]]
 
-    if p[-4] == 'if':
+    elif p[-4] == 'if':
         p[0] = Node()
         else_label = find_info("__Else", current_scope)["value"]
         end_if_label = find_info("__EndIf", current_scope)["value"]
         p[0].code += [["goto", end_if_label]]
         p[0].code += [["label", else_label]]
         p[0].extra["EndIfLabel"] = end_if_label
+
+    elif p[-6] == 'switch':
+        p[0] = Node()
+        end_switch_label = find_info("__EndSwitch", current_scope)["value"]
+        p[0].code += [["label", end_switch_label]]
 
     end_scope()
 
@@ -1362,25 +1378,87 @@ def p_if_stmt(p):
 
 def p_switch_stmt(p):
     '''switch_stmt  : expr_switch_stmt'''
-    p[0] = mytuple(["switch_stmt"] + p[1:])
+    # TODO: Type switch statement seems easy to implement (Check it out later)
+    p[0] = p[1]
 
 def p_expr_switch_stmt(p):
     '''expr_switch_stmt : SWITCH expression_opt add_scope LBRACE expr_case_clause_rep RBRACE end_scope'''
-    p[0] = mytuple(["expr_switch_stmt"] + p[1:])
+    # TODO: Add simplestmt case here if possible! (later)
+    p[0] = Node()
+    if not p[2].code == []:
+        p[0].code += p[2].code
+
+    p[0].code += p[5].code
+    if p[5].extra["default"]:
+        p[0].code += p[5].extra["default_code"]
+    p[0].code += p[7].code
 
 def p_expr_case_clause_rep(p):
     '''expr_case_clause_rep : expr_case_clause_rep expr_case_clause
                             | epsilon'''
-    p[0] = mytuple(["expr_case_clause_rep"] + p[1:])
+    p[0] = p[1]
+    if len(p) != 2:
+        p[0].code += p[2].code
+        p[0].extra.update(p[2].extra)
 
 def p_expr_case_clause(p):
     '''expr_case_clause : expr_switch_case COLON statement_list'''
-    p[0] = mytuple(["expr_case_clause"] + p[1:])
+    p[0] = p[1]
+    if p[0].extra["default"]:
+        p[0].extra["default_code"] = p[3].code
+    else:
+        p[0].code += p[3].code
+        end_switch_label = find_info("__EndSwitch", end_switch_label, "value")
+        p[0].code += [["goto", end_switch_label]]
+        next_label = p[0].extra["next_label"]
+        p[0].code += [["label", next_label]]
 
 def p_expr_switch_case(p):
     '''expr_switch_case : CASE expression_list
                         | DEFAULT'''
-    p[0] = mytuple(["expr_switch_case"] + p[1:])
+    # TODO: Same case expression must return error!
+    p[0] = Node()
+    if len(p) == 3:
+        switch_label_ctr = scopes[current_scope].extra["label_ctr"]
+        next_label = "_switch_" + str(switch_label_ctr) + "_" + find_info("__Switch", current_scope)["value"]
+        switch_label_ctr += 1
+        scopes[current_scope].add_extra("label_ctr", switch_label_ctr)
+        p[0].extra["next_label"] = next_label
+
+        if "switch_expr_type" in scopes[current_scope].extra:
+            required_type = scopes[current_scope].extra["switch_expr_type"]
+            for type_val in p[2].type_list:
+                if type_val != required_type:
+                    raise TypeError("The switch expr type " + required_type + " does not match " + type_val)
+            switch_var = scopes[current_scope].extra["switch_expr_var"]
+            bool_list = []
+            var_list = copy.deepcopy(p[2].place_list)
+            for temp_var in var_list:
+                new_temp_var = new_temp()
+                p[0].code += [[new_temp_var, " = ", switch_var, "==", temp_var]]
+                bool_list += [new_temp_var]
+            for temp_var in bool_list[:len(bool_list)-1]:
+                new_temp_var = new_temp()
+                p[0].code += [[new_temp_var, " = ", bool_list[0], "|", bool_list[1]]]
+                bool_list = [new_temp_var] + bool_list[2:]
+            p[0].code += [["if not", bool_list[0], "then goto", next_label]]
+
+        else:
+            for type_val in p[2].type_list:
+                if type_val != "bool":
+                    raise TypeError("The switch expr is not present so case expressions must be booleans")
+            var_list = copy.deepcopy(p[2].place_list)
+            for temp_var in var_list[:len(var_list)-1]:
+                new_temp_var = new_temp()
+                p[0].code += [[new_temp_var, " = ", var_list[0], "|", var_list[1]]]
+                var_list = [new_temp_var] + var_list[2:]
+            p[0].code += [["if not", var_list[0], "then goto", next_label]]
+    
+    else:
+        if scopes[current_scope].look_up("default"):
+            raise SyntaxError("Multiple defaults declared in switch statement!")
+        p[0].extra["default"] = True
+        scopes[current_scope].insert("default", "default_case")
 
 def p_for_stmt(p):
     '''for_stmt : FOR add_scope block end_scope
@@ -1489,7 +1567,7 @@ def p_continue_stmt(p):
     '''continue_stmt    : CONTINUE label
                         | CONTINUE'''
     p[0] = Node()
-    # TODO: Add continue for switch and select if implementing
+    # TODO: not sure about continue label (maybe a mistake)
     # Test this
     if len(p) == 3:
         if not in_scope(p[2]):
@@ -1507,7 +1585,7 @@ def p_break_stmt(p):
                     | BREAK'''
     p[0] = Node()
     # TODO: Add break for switch and select if implementing
-    # Test this
+    # TODO: Need to add break statement for switch case
     if len(p) == 3:
         if not in_scope(p[2]):
             raise NameError("Label " + p[2] + " not defined")
