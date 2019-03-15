@@ -1,12 +1,6 @@
 package main
 
-func foo() {
-	var i = 1
-}
+import "fmt"
 
 func main() {
-	foo()
-	bar(a)
-	foobar(a, b)
-	fmt.ab.ac(a,b,c)
 }

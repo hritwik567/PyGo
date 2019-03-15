@@ -139,7 +139,7 @@ def p_import_spec(p):
     if len(p) == 2:
         p[0] = p[1]
         if in_scope(p[1].id_list[0]):
-            raise NameError(str(p.lineno(1)) + ": Package " + p[1].id_list[0] + " already imported")
+            raise NameError(str(p.lineno(1)) + ": Package " + str(p[1].id_list[0]) + " already imported")
         else:
             add_to_import_table(p[1].id_list[0], None, p.lineno(1))
             scopes[current_scope].insert(p[1].id_list[0], "package")
@@ -152,7 +152,7 @@ def p_import_spec(p):
         p[0] = p[1]
         # p[0].id_list = [p[0].id_list[0] + " " + p[2].id_list[0]]
         if in_scope(p[0].id_list[0]):
-            raise NameError(str(p.lineno(2)) + ": Package " + p[0].id_list[0] + " already imported")
+            raise NameError(str(p.lineno(2)) + ": Package " + str(p[0].id_list[0]) + " already imported")
         else:
             add_to_import_table(p[2].id_list[0], p[0].id_list[0], p.lineno(2))
             scopes[current_scope].insert(p[0].id_list[0], "package")
@@ -465,7 +465,7 @@ def p_signature(p):
                 p[0].extra["return_temp"] += [None]
                 continue
             if id_list[i] in p[0].extra["parameter_temp"] or id_list[i] in p[0].extra["return_temp"]:
-                raise NameError(str(p.lexer.lineno) + ": Variable " + id_list[i] + " already declared")
+                raise NameError(str(p.lexer.lineno) + ": Variable " + str(id_list[i]) + " already declared")
             temp_v = new_temp()
             temp_array += [temp_v]
             p[0].extra["return_temp"] += [temp_v]
@@ -669,7 +669,7 @@ def p_var_spec(p):
         expr_type_list = p[3].type_list
         for i in range(len(p[1].id_list)):
             if scopes[current_scope].look_up(id_list[i]):
-                raise NameError(str(p.lineno(1)) + ": Variable " + id_list[i] + " already declared")
+                raise NameError(str(p.lineno(1)) + ": Variable " + str(id_list[i]) + " already declared")
             if expr_type_list[i] == "void":
                 raise TypeError(str(p.lineno(3)) + ": Cannot assign type void")
             if p[3].place_list[i] in temp_array:
@@ -690,7 +690,7 @@ def p_var_spec(p):
             id_list = p[1].id_list
             for i in range(len(id_list)):
                 if scopes[current_scope].look_up(id_list[i]):
-                    raise NameError(str(p.lineno(1)) + ": Variable " + id_list[i] + " already declared")
+                    raise NameError(str(p.lineno(1)) + ": Variable " + str(id_list[i]) + " already declared")
                 temp_v = new_temp()
                 temp_array += [temp_v]
                 scopes[current_scope].insert(id_list[i], p[2].type_list[0])
@@ -705,7 +705,7 @@ def p_var_spec(p):
             expr_type_list = p[3].type_list
             for i in range(len(id_list)):
                 if scopes[current_scope].look_up(id_list[i]):
-                    raise NameError(str(p.lineno(1)) + ": Variable " + id_list[i] + " already declared")
+                    raise NameError(str(p.lineno(1)) + ": Variable " + str(id_list[i]) + " already declared")
                 if expr_type_list[i] == "void":
                     raise TypeError(str(p.lineno(3)) + ": Cannot assign type void")
                 typecast = ("float" in p[2].type_list[0] and "int" in expr_type_list[i])
@@ -723,7 +723,7 @@ def p_var_spec(p):
                     scopes[current_scope].update(id_list[i], temp_v, "temp")
                     scopes[current_scope].update(id_list[i], True, "is_var")
                 else:
-                    raise TypeError(str(p.lineno(1)) + ": Type mismatch for identifier:" + id_list[i])
+                    raise TypeError(str(p.lineno(1)) + ": Type mismatch for identifier:" + str(id_list[i]))
         p[0].code += p[3].code
 def p_expr_list_assign_opt(p):
     '''expr_list_assign_opt : ASSIGN expression_list
@@ -741,7 +741,7 @@ def p_short_val_decl(p):
     p[0] = p[3]
     p[0].id_list += [p[1]]
     if scopes[current_scope].look_up(p[1]):
-        raise NameError(str(p.lineno(1)) + ": Variable " + p[1] + " already declared")
+        raise NameError(str(p.lineno(1)) + ": Variable " + str(p[1]) + " already declared")
     if p[0].type_list[0] == "void":
         raise TypeError(str(p.lineno(3)) + ": Cannot assign type void")
     if p[3].place_list[0] in temp_array:
@@ -863,6 +863,7 @@ def p_basic_lit(p):
         p[0].place_list = [temp_v]
         p[0].code = [["=", temp_v, p[1]]]
         p[0].type_list = ["string"]
+        p[0].extra["size"] = len(p[1])
 
 def p_int_lit(p):
     '''int_lit  : DECIMAL_LIT
@@ -952,7 +953,7 @@ def p_primary_expr(p):
                 p[0].code += [["=", temp_v, "(addr)", info["temp"]]]
                 info1 = find_info(info["type"], p.lineno(1), 0)
             else:
-                raise NameError(str(p.lineno(1)) + ": Variable " + p[0].id_list[0] + " not defined")
+                raise NameError(str(p.lineno(1)) + ": Variable " + str(p[0].id_list[0]) + " not defined")
         else:
             info1 = find_info(p[0].type_list[0][1], p.lineno(1), 0)
             temp_v = p[0].place_list[0]
@@ -965,7 +966,7 @@ def p_primary_expr(p):
             p[0].extra["size"] = 4
         # elif p[3] in info1["methods"]:
         else:
-            raise NameError(str(p.lineno(3)) + ": No field or method " + p[3] + " defined in " + info1["type"])
+            raise NameError(str(p.lineno(3)) + ": No field or method " + str(p[3]) + " defined in " + str(info1["type"]))
 
     elif p[2] == "[":
         p[0] = p[1]
@@ -978,15 +979,15 @@ def p_primary_expr(p):
                 p[0].type_list = [info["type"]]
                 p[0].extra["size"] = info["size"]
             else:
-                raise NameError(str(p.lineno(1)) + ": Variable " + p[0].id_list[0] + " not defined")
+                raise NameError(str(p.lineno(1)) + ": Variable " + str(p[0].id_list[0]) + " not defined")
         elif "pointer" in p[0].type_list[0]:
             if "array" not in p[0].type_list[0][1]:
-                raise TypeError(str(p.lineno(1)) + ": Type " + p[0].type_list[0] + " not indexable")
+                raise TypeError(str(p.lineno(1)) + ": Type " + str(p[0].type_list[0]) + " not indexable")
             p[0].extra["size"] = p[0].type_list[0][2]
             p[0].type_list = [p[0].type_list[0][1]]
             temp_v = p[0].place_list[0]
         elif "array" not in p[0].type_list[0]:
-            raise TypeError(str(p.lineno(1)) + ": Type " + p[0].type_list[0] + " not indexable")
+            raise TypeError(str(p.lineno(1)) + ": Type " + str(p[0].type_list[0]) + " not indexable")
         else:
             temp_v = p[0].place_list[0]
         p[0].type_list = [["pointer", p[0].type_list[0][1], p[0].type_list[0][2]]]
@@ -1008,7 +1009,7 @@ def p_primary_expr(p):
                     if p[3].type_list[i] == j and p[3].extra["size"][i] == info["parameter_size"][i]:
                         p[0].code += [["push", p[3].place_list[i]]]
                     else:
-                        raise TypeError(str(p.lineno(1)) + ": Function " + p[1].id_list[0] + " should not be called with type " + j + " at the index " + str(i))
+                        raise TypeError(str(p.lineno(1)) + ": Function " + str(p[1].id_list[0]) + " should not be called with type " + str(j) + " at the index " + str(i))
                 p[0].code += [["goto", info["label"]]]
                 if info["return_type"][0] != "void":
                     temp_v = new_temp()
@@ -1020,9 +1021,9 @@ def p_primary_expr(p):
                 p[0].type_list = [info["return_type"][0]]
                 p[0].extra["size"] = info["return_size"][0]
             else:
-                raise NameError(str(p.lineno(1)) + ": Variable " + p[0].id_list[0] + " not defined")
+                raise NameError(str(p.lineno(1)) + ": Variable " + str(p[0].id_list[0]) + " not defined")
         else:
-            raise TypeError(str(p.lineno(1)) + ": Identifier of type " + p[1].id_list[0] + " not callable")
+            raise TypeError(str(p.lineno(1)) + ": Identifier of type " + str(p[1].id_list[0]) + " not callable")
 
 def p_slice(p):
     '''slice    : LBRACK expression_opt COLON expression_opt RBRACK
@@ -1080,11 +1081,11 @@ def p_expression(p):
                 p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
                 p[0].type_list = ["float32"]
             elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
-                p[0].place_list = [temp_v]
                 p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
+            if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
                 p[0].type_list = ["bool"]
             else:
-                raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + p[2] + " on float literals")
+                raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
         else:
             p[0].code = p[1].code
             p[0].code += p[3].code
@@ -1095,14 +1096,14 @@ def p_expression(p):
                         p[0].code += [["concat", temp_v, p[1].place_list[0], p[3].place_list[0]]]
                         p[0].type_list = ["string"]
                     else:
-                        raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + p[2] + " on string literal")
+                        raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on string literal")
                 elif "bool" == p[1].type_list[0]:
                     if p[2] == "&&" or p[2] == "||":
                         p[0].place_list = [temp_v]
                         p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                         p[0].type_list = [p[1].type_list[0]]
                     else:
-                        raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + p[2] + " on bool literals")
+                        raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on bool literals")
                 elif "int" in p[1].type_list[0] or "byte" == p[1].type_list[0]:
                     if p[2] == "<<" or p[2] == ">>":
                         if "u" not in p[3].type_list[0]:
@@ -1124,10 +1125,10 @@ def p_expression(p):
                         p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                         p[0].type_list = ["bool"]
                     else:
-                        raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + p[2] + " on float literals")
+                        raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
             else:
-                raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + p[2] + " on " + p[1].type_list[0] + " and " + p[3].type_list[0])
-            print("expression----------", p[0].code)
+                raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on " + str(p[1].type_list[0]) + " and " + str(p[3].type_list[0]))
+
 def p_unary_expr(p):
     '''unary_expr   : primary_expr
                     | unary_op unary_expr'''
@@ -1140,7 +1141,7 @@ def p_unary_expr(p):
                 p[0].place_list = [info["temp"]]
                 p[0].extra["size"] = info["size"]
             else:
-                raise NameError(str(p.lineno(1)) + ": Variable " + p[0].id_list[0] + " not defined")
+                raise NameError(str(p.lineno(1)) + ": Variable " + str(p[0].id_list[0]) + " not defined")
         elif "pointer" in p[0].type_list[0]:
             temp_v = new_temp()
             p[0].code += [["=", temp_v, "(load)", p[0].place_list[0]]]
@@ -1156,13 +1157,13 @@ def p_unary_expr(p):
                 p[0].code += [["=", temp_v, "!", p[2].place_list[0]]]
                 p[0].place_list = [temp_v]
             else:
-                raise TypeError(str(p.lineno(1)) + ": Type Mismatch with unary operator" + p[1])
+                raise TypeError(str(p.lineno(1)) + ": Type Mismatch with unary operator" + str(p[1]))
 
         if p[1] == "+":
             if "int" in p[2].type_list[0] or "float" in p[2].type_list[0] :
                 p[0] = p[2]
             else:
-                raise TypeError(str(p.line(1)) + ": Type Mismatch with unary operator" + p[1])
+                raise TypeError(str(p.line(1)) + ": Type Mismatch with unary operator" + str(p[1]))
 
         if p[1] == "-":
             if "int" in p[2].type_list[0] or "float" in p[2].type_list[0] :
@@ -1177,7 +1178,7 @@ def p_unary_expr(p):
                 p[0].code += [[type_v + "_" + p[1], temp_v2, temp_v1, p[2].place_list[0]]]
                 p[0].place_list = [temp_v2]
             else:
-                raise TypeError(str(p.lineno(1)) + ": Type Mismatch with unary operator" + p[1])
+                raise TypeError(str(p.lineno(1)) + ": Type Mismatch with unary operator" + str(p[1]))
 
         if p[1] == "*":
             if p[2].type_list[0][0] == "pointer":
@@ -1188,7 +1189,7 @@ def p_unary_expr(p):
                 p[0].size = p[2].type_list[0][2]
                 p[0].place_list = [temp_v]
             else:
-                raise TypeError(str(p.lineno(1)) + ": Type Mismatch with unary operator" + p[1])
+                raise TypeError(str(p.lineno(1)) + ": Type Mismatch with unary operator" + str(p[1]))
 
         if p[1] == "&":
             p[0] = p[2]
@@ -1257,7 +1258,6 @@ def p_statement_rep(p):
 def p_block(p):
     '''block    : LBRACE statement_list RBRACE'''
     # p[0] = mytuple(["block"] + p[1:])
-    # TODO: Add block code and pass on above with id, type and temp_var list
     # Note that new label must be made by the production calling the block
     # If the block wants to use the label of the current scope then it should be able to fetch it from symbol table (extra dict())
     p[0] = p[2]
@@ -1320,7 +1320,7 @@ def p_simple_stmt(p):
 def p_labeled_stmt(p):
     '''labeled_stmt : label COLON statement'''
     if in_scope(p[1]):
-        raise NameError(str(p.lineno(1)) + ": Label " + p[1] + " already defined")
+        raise NameError(str(p.lineno(1)) + ": Label " + str(p[1]) + " already defined")
     else:
         global scopes, current_scope
         temp_l = new_label()
@@ -1348,7 +1348,7 @@ def p_inc_dec_stmt(p):
     if type_v != "":
         p[0].code += [[type_v + "_" + p[2][1], p[0].place_list[0], p[0].place_list[0], "1"]]
     else:
-        raise TypeError(str(p.lineno(1)) + ": Can't do " + p[2] + " operation on type " + p[0].type_list[0])
+        raise TypeError(str(p.lineno(1)) + ": Can't do " + str(p[2]) + " operation on type " + str(p[0].type_list[0]))
 
 def p_assignment(p):
     '''assignment   : expression_list ASSIGN expression_list'''
@@ -1370,7 +1370,7 @@ def p_assignment(p):
         if expr_type_list_key[i] == expr_type_list_val[i] or typecast:
             p[0].code += [["=", expr_place_list_key[i], expr_place_list_val[i]]]
         else:
-            raise TypeError(str(p.lineno(1)) + ": Type mismatch for identifier " + expr_place_list_key[i])
+            raise TypeError(str(p.lineno(1)) + ": Type mismatch for identifier " + str(expr_place_list_key[i]))
 
 #def p_assign_op(p):
 #    '''assign_op    : ASSIGN
@@ -1393,7 +1393,7 @@ def p_if_stmt(p):
                 | IF expression add_scope block end_scope ELSE if_stmt'''
     # Need to test this once
     if p[2].type_list[0] != "bool":
-        raise TypeError(str(p.lineno(2)) + ": The condition " + p[2] + " is not a boolean value")
+        raise TypeError(str(p.lineno(2)) + ": The condition " + str(p[2]) + " is not a boolean value")
     p[0] = Node()
     p[0].code += p[2].code
     p[0].code += p[3].code
@@ -1460,7 +1460,7 @@ def p_expr_switch_case(p):
             required_type = scopes[current_scope].extra["switch_expr_type"]
             for type_val in p[2].type_list:
                 if type_val != required_type:
-                    raise TypeError(str(p.lineno(2)) + ": The switch expr type " + required_type + " does not match " + type_val)
+                    raise TypeError(str(p.lineno(2)) + ": The switch expr type " + str(required_type) + " does not match " + str(type_val))
             switch_var = scopes[current_scope].extra["switch_expr_var"]
             bool_list = []
             var_list = copy.deepcopy(p[2].place_list)
@@ -1534,12 +1534,6 @@ def p_for_clause(p):
         p[0].extra["mid_for_label"] = mid_for_label
         p[0].extra["post_stmt_code"] = p[5].code
 
-# def p_post_init_stmt(p):
-#     '''post_init_stmt    : SEMICOLON condition_opt SEMICOLON post_stmt
-#                     | epsilon'''
-#     p[0] = mytuple(["post_init_stmt"] + p[1:])
-
-
 def p_post_stmt(p):
     '''post_stmt    : simple_stmt
                     | epsilon'''
@@ -1552,18 +1546,14 @@ def p_init_stmt(p):
 
 def p_condition(p):
     '''condition    : expression'''
-    # TODO: Add condition statement for if
-    # Test "for" one
     if p[1].type_list[0] != "bool":
-        raise TypeError(str(p.lineno(1)) + ": The condition " + p[1] + " is not a boolean value")
+        raise TypeError(str(p.lineno(1)) + ": The condition " + str(p[1]) + " is not a boolean value")
     if p[-2] == 'for':
         p[0] = Node()
         p[0].code += p[-1].code
         p[0].code += p[1].code
         end_for_label = find_info("__EndFor", p.lineno(0))["value"]
         p[0].code += [["if not", p[1].place_list[0], "then goto", end_for_label]]
-
-    # General case
     else:
         p[0] = p[1]
 
@@ -1598,7 +1588,7 @@ def p_return_stmt(p):
         if info["return_type"][0] == p[2].type_list[0]:
             p[0].code += [["return", p[2].place_list[0]]]
         else:
-            raise TypeError(str(p.lineno(2)) + ": Return type " + info["return_type"][0] + " does not match " + p[2].type_list[0])
+            raise TypeError(str(p.lineno(2)) + ": Return type " + str(info["return_type"][0]) + " does not match " + str(p[2].type_list[0]))
 
 def p_fallthrough_stmt(p):
     '''fallthrough_stmt : FALLTHROUGH'''
@@ -1614,7 +1604,7 @@ def p_goto_stmt(p):
     '''goto_stmt  : GOTO label'''
     info = find_info(p[2], p.lineno(2))
     if info["type"] != "label":
-        raise NameError(str(p.lineno(2)) + ": No label " + p[2] + " defined")
+        raise NameError(str(p.lineno(2)) + ": No label " + str(p[2]) + " defined")
     p[0] = Node()
     p[0].code += [["goto", info["value"]]]
 
