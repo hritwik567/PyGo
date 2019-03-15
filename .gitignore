@@ -1,4 +1,6 @@
 *.html
+*.ir
+*.symtab
 *.out
 *.log
 *.aux

@@ -9,10 +9,7 @@ func main() {
   num := a * b / (b + c - a)
   frac := z / y * (x + z) * y / z
 
-  var final_ans = num + frac
-  final_ans *= 100
-
   var flag = false
-  var f bool = 1
-  var c = f == flag
+  var f bool = true
+  var d = f == flag
 }

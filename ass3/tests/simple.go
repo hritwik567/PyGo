@@ -13,7 +13,7 @@ func main() {
 
   var x = c / a
   y := 2.2
-  var z float32 = y * 100.0
+  var z float32 = y * 100
 
   var l bool = true
   var k = false
