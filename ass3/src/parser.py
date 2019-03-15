@@ -1075,8 +1075,7 @@ def p_expression(p):
         p[0] = Node()
         p[0].extra["size"] = max(p[1].extra["size"], p[3].extra["size"])
         if len(p[1].code) > 0 and len(p[3].code) > 0 and type(p[1].code[-1][-1]) == int and type(p[3].code[-1][-1]) == int:
-            p[0].code = p[1].code[:-1]
-            p[0].code += p[3].code[:-1]
+            p[0].code = p[1].code[:-1] + p[3].code[:-1]
             p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
             p[0].place_list = [temp_v]
             if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
@@ -1085,16 +1084,14 @@ def p_expression(p):
                 p[0].type_list = ["int"]
         elif len(p[1].code) > 0 and len(p[3].code) > 0 and type(p[1].code[-1][-1]) == bool and type(p[3].code[-1][-1]) == bool:
             if p[2] == "&&" or p[2] == "||" or p[2] == "==" or p[2] == "^":
-                p[0].code = p[1].code[:-1]
-                p[0].code += p[3].code[:-1]
+                p[0].code = p[1].code[:-1] + p[3].code[:-1]
                 p[0].place_list = [temp_v]
                 p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
                 p[0].type_list = ["bool"]
             else:
                 raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on bool literals")
         elif len(p[1].code) > 0 and len(p[3].code) > 0 and is_number(p[1].code[-1][-1]) and is_number(p[3].code[-1][-1]):
-            p[0].code = p[1].code[:-1]
-            p[0].code += p[3].code[:-1]
+            p[0].code = p[1].code[:-1] + p[3].code[:-1]
             p[0].place_list = [temp_v]
             if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
                 p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
@@ -1105,8 +1102,9 @@ def p_expression(p):
             else:
                 raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
         else:
-            p[0].code = p[1].code
-            p[0].code += p[3].code
+            print("here", p[1].code, p[3].code, "here")
+            p[0].code = p[1].code + p[3].code
+            print("here", p[1].code, p[3].code, "here")
             if p[1].type_list[0] == p[3].type_list[0]:
                 if p[1].type_list[0] == "string":
                     if p[2] == "+":
@@ -1238,8 +1236,8 @@ def p_expression(p):
                             p[0].type_list = ["bool"]
                         else:
                             raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
-                    elif p[1].code[-1][-1] == int(p[1].code[-1][-1]):
-                        p[1].code[-1][-1] = int(p[1].code[-1][-1])
+                    elif p[3].code[-1][-1] == int(p[3].code[-1][-1]):
+                        p[3].code[-1][-1] = int(p[3].code[-1][-1])
                         if "int" in p[1].type_list[0] or p[1].type_list[0] == "byte":
                             p[0].place_list = [temp_v]
                             p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
