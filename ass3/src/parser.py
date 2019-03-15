@@ -797,6 +797,9 @@ def p_function(p):
         elif info["return_type"] != p[1].extra["return_type"]:
             raise TypeError(str(p.lineno(1)) + ": Prototype and Function return type don't match ", info["parameter_type"], p[1].extra["return_type"])
 
+    info = scopes[0].get_info(p[-2])
+    if info["return_type"][0] != "void" and info.get("is_returning", None) != True:
+        raise TypeError(str(p.lineno(1)) + ": Function return type is not void", p[-2])
     p[0] = Node()
     p[0].code += p[1].code + p[2].code
 
@@ -1060,29 +1063,28 @@ def p_expression(p):
         temp_v = new_temp()
         p[0] = Node()
         p[0].extra["size"] = max(p[1].extra["size"], p[3].extra["size"])
-        if len(p[1].code) > 0 and len(p[3].code) > 0:
-            if type(p[1].code[-1][-1]) == int and type(p[3].code[-1][-1]) == int:
-                p[0].code = p[1].code[:-1]
-                p[0].code += p[3].code[:-1]
+        if len(p[1].code) > 0 and len(p[3].code) > 0 and type(p[1].code[-1][-1]) == int and type(p[3].code[-1][-1]) == int:
+            p[0].code = p[1].code[:-1]
+            p[0].code += p[3].code[:-1]
+            p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
+            p[0].place_list = [temp_v]
+            if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                p[0].type_list = ["bool"]
+            else:
+                p[0].type_list = ["int"]
+        elif len(p[1].code) > 0 and len(p[3].code) > 0 and type(p[1].code[-1][-1]) == float or type(p[3].code[-1][-1]) == float:
+            p[0].code = p[1].code[:-1]
+            p[0].code += p[3].code[:-1]
+            p[0].place_list = [temp_v]
+            if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
                 p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
+                p[0].type_list = ["float32"]
+            elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
                 p[0].place_list = [temp_v]
-                if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
-                    p[0].type_list = ["bool"]
-                else:
-                    p[0].type_list = ["int"]
-            elif type(p[1].code[-1][-1]) == float or type(p[3].code[-1][-1]) == float:
-                p[0].code = p[1].code[:-1]
-                p[0].code += p[3].code[:-1]
-                p[0].place_list = [temp_v]
-                if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
-                    p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
-                    p[0].type_list = ["float32"]
-                elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
-                    p[0].place_list = [temp_v]
-                    p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
-                    p[0].type_list = ["bool"]
-                else:
-                    raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + p[2] + " on float literals")
+                p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
+                p[0].type_list = ["bool"]
+            else:
+                raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + p[2] + " on float literals")
         else:
             p[0].code = p[1].code
             p[0].code += p[3].code
@@ -1125,7 +1127,7 @@ def p_expression(p):
                         raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + p[2] + " on float literals")
             else:
                 raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + p[2] + " on " + p[1].type_list[0] + " and " + p[3].type_list[0])
-
+            print("expression----------", p[0].code)
 def p_unary_expr(p):
     '''unary_expr   : primary_expr
                     | unary_op unary_expr'''
@@ -1581,9 +1583,9 @@ def p_return_stmt(p):
                     | RETURN expression_list'''
     global scopes, current_scope
     p[0] = Node()
-    func_name = find_info("__FuncName", p.lexer.lineno, current_scope)["value"]
+    func_name = find_info("__FuncName", p.lexer.lineno)["value"]
     info = find_info(func_name, p.lexer.lineno, 0)
-    print("return ", info)
+    scopes[0].update(func_name, True, "is_returning")
     if len(p) == 2:
         if info["return_type"][0] == "void":
             p[0].code += [["return"]]
@@ -1676,7 +1678,7 @@ f = open(infile)
 data = f.read()
 f.close()
 
-sys.tracebacklimit = 0
+# sys.tracebacklimit = 0
 output = parser.parse(data, tracking=True)
 
 #print(output)
