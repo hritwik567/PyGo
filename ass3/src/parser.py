@@ -720,7 +720,7 @@ def p_var_spec(p):
                     raise TypeError(str(p.lineno(3)) + ": Cannot assign type void")
                 typecast = ("float" in p[2].type_list[0] and "int" in expr_type_list[i])
                 typecast = typecast or (p[2].type_list[0].startswith("int") and "int" in expr_type_list[i])
-                typecast = typecast or (p[2].type_list[0].startswith("uint") and "uint" in expr_type_list[i])
+                typecast = typecast or ("uint" in p[2].type_list[0] and "int" in expr_type_list[i])
                 if p[2].type_list[0] == expr_type_list[i] or typecast:
                     if p[3].place_list[i] in temp_array:
                         temp_v = new_temp()
@@ -1015,12 +1015,12 @@ def p_primary_expr(p):
             if info["type"] == "function":
                 p[0] = Node()
                 p[0].code += p[3].code
-                for i, j in enumerate(info["parameter_type"]):
+                for i, j in enumerate(info["parameter_type"][::-1]):
                     if p[3].type_list[i] == j and p[3].extra["size"][i] == info["parameter_size"][i]:
                         p[0].code += [["push", p[3].place_list[i]]]
                     else:
                         raise TypeError(str(p.lineno(1)) + ": Function " + str(p[1].id_list[0]) + " should not be called with type " + str(j) + " at the index " + str(i))
-                p[0].code += [["goto", info["label"]]]
+                p[0].code += [["call", info["label"]]]
                 if info["return_type"][0] != "void":
                     temp_v = new_temp()
                     p[0].code += [["=", temp_v, "return_value"]]
@@ -1116,7 +1116,7 @@ def p_expression(p):
                     else:
                         raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on string literal")
                 elif "bool" == p[1].type_list[0]:
-                    if p[2] == "&&" or p[2] == "||" or p[2] == "==" or p[2] == "^":
+                    if p[2] == "&&" or p[2] == "||" or p[2] == "==":
                         p[0].place_list = [temp_v]
                         p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                         p[0].type_list = [p[1].type_list[0]]
@@ -1124,9 +1124,8 @@ def p_expression(p):
                         raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on bool literals")
                 elif "int" in p[1].type_list[0] or "byte" == p[1].type_list[0]:
                     if p[2] == "<<" or p[2] == ">>":
-                        if "u" not in p[3].type_list[0]:
-                            _temp_v = new_temp()
-                            p[0].code += [["=", temp_v, "(uint)", p[3].place_list[0]]]
+                        if "u" not in p[3].type_list[0] or p[3].type_list[0] != "byte":
+                            raise TypeError(str(p.lineno(2)) + ": Shift count should be unsigned integer")
                     p[0].place_list = [temp_v]
                     p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                     if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
@@ -1145,8 +1144,120 @@ def p_expression(p):
                     else:
                         raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
             else:
-                raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on " + str(p[1].type_list[0]) + " and " + str(p[3].type_list[0]))
-
+                print("here1", p[1].code, p[3].code)
+                if len(p[1].code) > 0 and type(p[1].code[-1][-1]) == int:
+                    print("here2", p[1].code, p[3].code)
+                    if "int" in p[3].type_list[0] or p[3].type_list[0] == "byte":
+                        print("here2.1")
+                        if p[2] == "<<" or p[2] == ">>":
+                            if "u" not in p[3].type_list[0] or p[3].type_list[0] != "byte":
+                                raise TypeError(str(p.lineno(2)) + ": Shift count should be unsigned integer")
+                        p[0].place_list = [temp_v]
+                        p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                        if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                            p[0].type_list = ["bool"]
+                        elif p[2] == "<<" or p[2] == ">>":
+                            p[0].type_list = ["int"]
+                        else:
+                            p[0].type_list = [p[3].type_list[0]]
+                    elif "float" in p[3].type_list[0]:
+                        if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
+                            p[0].place_list = [temp_v]
+                            p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                            p[0].type_list = [p[3].type_list[0]]
+                        elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                            p[0].place_list = [temp_v]
+                            p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                            p[0].type_list = ["bool"]
+                        else:
+                            raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
+                elif len(p[3].code) > 0 and type(p[3].code[-1][-1]) == int:
+                    print("here3")
+                    if "int" in p[1].type_list[0] or p[1].type_list[0] == "byte":
+                        p[0].place_list = [temp_v]
+                        p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                        if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                            p[0].type_list = ["bool"]
+                        else:
+                            p[0].type_list = [p[1].type_list[0]]
+                    elif "float" in p[1].type_list[0]:
+                        if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
+                            p[0].place_list = [temp_v]
+                            p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                            p[0].type_list = [p[3].type_list[0]]
+                        elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                            p[0].place_list = [temp_v]
+                            p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                            p[0].type_list = ["bool"]
+                        else:
+                            raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
+                elif len(p[1].code) > 0 and type(p[1].code[-1][-1]) == float:
+                    print("here4")
+                    if p[3].type_list[0] == "float64":
+                        print("here5")
+                        if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
+                            p[0].place_list = [temp_v]
+                            p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                            p[0].type_list = [p[3].type_list[0]]
+                        elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                            p[0].place_list = [temp_v]
+                            p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                            p[0].type_list = ["bool"]
+                        else:
+                            raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
+                    elif p[1].code[-1][-1] == int(p[1].code[-1][-1]):
+                        print("here6")
+                        p[1].code[-1][-1] = int(p[1].code[-1][-1])
+                        if "int" in p[3].type_list[0] or p[3].type_list[0] == "byte":
+                            if p[2] == "<<" or p[2] == ">>":
+                                if "u" not in p[3].type_list[0] or p[3].type_list[0] != "byte":
+                                    raise TypeError(str(p.lineno(2)) + ": Shift count should be unsigned integer")
+                            p[0].place_list = [temp_v]
+                            p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                            if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                                p[0].type_list = ["bool"]
+                            elif p[2] == "<<" or p[2] == ">>":
+                                p[0].type_list = ["int"]
+                            else:
+                                p[0].type_list = [p[3].type_list[0]]
+                        else:
+                            raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on " + str(p[1].type_list[0]) + " and " + str(p[3].type_list[0]))
+                    else:
+                        raise TypeError(str(p.lineno(2)) + ": Cannot truncate " + str(p[1].code[-1][-1]) + " to int")
+                elif len(p[3].code) > 0 and type(p[3].code[-1][-1]) == float:
+                    print("here7")
+                    if p[1].type_list[0] == "float64":
+                        print("here8")
+                        if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
+                            p[0].place_list = [temp_v]
+                            p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                            p[0].type_list = [p[1].type_list[0]]
+                        elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                            p[0].place_list = [temp_v]
+                            p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                            p[0].type_list = ["bool"]
+                        else:
+                            raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
+                    elif p[1].code[-1][-1] == int(p[1].code[-1][-1]):
+                        p[1].code[-1][-1] = int(p[1].code[-1][-1])
+                        if "int" in p[1].type_list[0] or p[1].type_list[0] == "byte":
+                            p[0].place_list = [temp_v]
+                            p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                            if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                                p[0].type_list = ["bool"]
+                            else:
+                                p[0].type_list = [p[1].type_list[0]]
+                        else:
+                            raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on " + str(p[1].type_list[0]) + " and " + str(p[3].type_list[0]))
+                    else:
+                        raise TypeError(str(p.lineno(2)) + ": Cannot truncate " + str(p[1].code[-1][-1]) + " to int")
+                elif "int" in p[1].type_list[0] and ("byte" == p[3].type_list[0] or p[3].type_list[0].startswith("uint")) and (p[2] == "<<" or p[2] == ">>"):
+                    p[0].place_list = [temp_v]
+                    p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                    p[0].type_list = [p[1].type_list[0]]
+                else:
+                    raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on " + str(p[1].type_list[0]) + " and " + str(p[3].type_list[0]))
+    print(p[0].code, "---------------------")
 def p_unary_expr(p):
     '''unary_expr   : primary_expr
                     | unary_op unary_expr'''
@@ -1289,17 +1400,25 @@ def p_conversion(p):
 
     if "int" in p[2].type_list[0] and "int" in p[4].type_list[0]:
         temp_v = new_temp()
-        type = "(" + p[4].type_list[0] + ")"
+        type = "(" + p[2].type_list[0] + ")"
         p[0].code += [["=", temp_v, type, p[4].place_list[0]]]
         p[0].place_list = [temp_v]
-        p[0].type_list = [p[4].type_list[0]]
+        p[0].type_list = [p[2].type_list[0]]
 
     if ("int" in p[2].type_list[0] or "float" in p[2].type_list[0]) and "float" in p[4].type_list[0]:
         temp_v = new_temp()
-        type = "(" + p[4].type_list[0] + ")"
+        type = "(" + p[2].type_list[0] + ")"
         p[0].code += [["=", temp_v, type, p[4].place_list[0]]]
         p[0].place_list = [temp_v]
-        p[0].type_list = [p[4].type_list[0]]
+        p[0].type_list = [p[2].type_list[0]]
+
+    if "float" in p[2].type_list[0] and "int" in p[4].type_list[0]:
+        temp_v = new_temp()
+        type = "(" + p[2].type_list[0] + ")"
+        p[0].code += [["=", temp_v, type, p[4].place_list[0]]]
+        p[0].place_list = [temp_v]
+        p[0].type_list = [p[2].type_list[0]]
+
 
 def p_comma_opt(p):
     '''comma_opt    : COMMA
