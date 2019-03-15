@@ -1794,7 +1794,7 @@ f = open(infile)
 data = f.read()
 f.close()
 
-# sys.tracebacklimit = 0
+sys.tracebacklimit = 0
 output = parser.parse(data, tracking=True)
 
 f = open(args.out[:-3] + ".symtab", "w")
