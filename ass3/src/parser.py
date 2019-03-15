@@ -4,8 +4,9 @@ import sys
 import argparse
 import lexer
 import os
-import inspect
+import csv
 import copy
+import pprint
 from symbol_table import SymbolTable
 from node import Node
 tokens = lexer.tokens
@@ -55,7 +56,6 @@ def is_number(s):
 
 def new_temp():
     global temp_ctr
-    # print(inspect.stack()[1].function)
     temp_ctr += 1
     return "temp" + str(temp_ctr)
 
@@ -201,10 +201,11 @@ def p_source_file(p):
     p[0] = p[1]
     p[0].code += p[3].code
     p[0].code += p[4].code
-    print("-----------code-----------")
+    f = open(args.out, "w")
+    csvwriter = csv.writer(f, delimiter=',')
     for i in p[0].code:
-        print(i)
-    print("-----------code-----------")
+        csvwriter.writerow(i)
+    f.close()
 
 ######################################################## SACRED #############################################################################
 def p_add_scope(p):
@@ -1073,7 +1074,6 @@ def p_expression(p):
         temp_v = new_temp()
         p[0] = Node()
         p[0].extra["size"] = max(p[1].extra["size"], p[3].extra["size"])
-        print("expression", p[1].code, p[3].code)
         if len(p[1].code) > 0 and len(p[3].code) > 0 and type(p[1].code[-1][-1]) == int and type(p[3].code[-1][-1]) == int:
             p[0].code = p[1].code[:-1]
             p[0].code += p[3].code[:-1]
@@ -1689,7 +1689,12 @@ f.close()
 # sys.tracebacklimit = 0
 output = parser.parse(data, tracking=True)
 
-#print(output)
-
-#for i, scope in enumerate(scopes):
-#    print(i, scope.table, scope.global_list, scope.parent)
+f = open(args.out[:-3] + ".symtab", "w")
+pp = pprint.PrettyPrinter(indent=3, stream=f)
+for i, scope in enumerate(scopes):
+    pp.pprint("Scope: " + str(i))
+    pp.pprint("Parent Scope: " + str(scope.parent))
+    pp.pprint("Symbols: " + ", ".join(scope.global_list))
+    pp.pprint(scope.table)
+    f.write("\n")
+f.close()
