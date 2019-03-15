@@ -1102,9 +1102,7 @@ def p_expression(p):
             else:
                 raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
         else:
-            print("here", p[1].code, p[3].code, "here")
             p[0].code = p[1].code + p[3].code
-            print("here", p[1].code, p[3].code, "here")
             if p[1].type_list[0] == p[3].type_list[0]:
                 if p[1].type_list[0] == "string":
                     if p[2] == "+":
@@ -1142,9 +1140,7 @@ def p_expression(p):
                     else:
                         raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
             else:
-                print("here1", p[1].code, p[3].code)
                 if len(p[1].code) > 0 and type(p[1].code[-1][-1]) == int:
-                    print("here2", p[1].code, p[3].code)
                     if "int" in p[3].type_list[0] or p[3].type_list[0] == "byte":
                         print("here2.1")
                         if p[2] == "<<" or p[2] == ">>":
@@ -1170,7 +1166,6 @@ def p_expression(p):
                         else:
                             raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
                 elif len(p[3].code) > 0 and type(p[3].code[-1][-1]) == int:
-                    print("here3")
                     if "int" in p[1].type_list[0] or p[1].type_list[0] == "byte":
                         p[0].place_list = [temp_v]
                         p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
@@ -1190,9 +1185,7 @@ def p_expression(p):
                         else:
                             raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
                 elif len(p[1].code) > 0 and type(p[1].code[-1][-1]) == float:
-                    print("here4")
                     if p[3].type_list[0] == "float64":
-                        print("here5")
                         if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
                             p[0].place_list = [temp_v]
                             p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
@@ -1204,7 +1197,6 @@ def p_expression(p):
                         else:
                             raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
                     elif p[1].code[-1][-1] == int(p[1].code[-1][-1]):
-                        print("here6")
                         p[1].code[-1][-1] = int(p[1].code[-1][-1])
                         if "int" in p[3].type_list[0] or p[3].type_list[0] == "byte":
                             if p[2] == "<<" or p[2] == ">>":
@@ -1223,7 +1215,6 @@ def p_expression(p):
                     else:
                         raise TypeError(str(p.lineno(2)) + ": Cannot truncate " + str(p[1].code[-1][-1]) + " to int")
                 elif len(p[3].code) > 0 and type(p[3].code[-1][-1]) == float:
-                    print("here7")
                     if p[1].type_list[0] == "float64":
                         print("here8")
                         if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
@@ -1255,7 +1246,7 @@ def p_expression(p):
                     p[0].type_list = [p[1].type_list[0]]
                 else:
                     raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on " + str(p[1].type_list[0]) + " and " + str(p[3].type_list[0]))
-    print(p[0].code, "---------------------")
+
 def p_unary_expr(p):
     '''unary_expr   : primary_expr
                     | unary_op unary_expr'''
