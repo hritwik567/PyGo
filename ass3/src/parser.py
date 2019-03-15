@@ -860,6 +860,7 @@ def p_basic_lit(p):
         p[0].place_list = [temp_v]
         p[0].code = [["=", temp_v, p[1]]]
         p[0].type_list = ["string"]
+        p[0].extra["size"] = len(p[1])
 
 def p_int_lit(p):
     '''int_lit  : DECIMAL_LIT
