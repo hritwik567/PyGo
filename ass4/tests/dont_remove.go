@@ -33,7 +33,8 @@ type T struct {
 
 type List struct {
   val int
-  next *type List
+  left *type List
+	right *type List
 }
 
 func main() {
@@ -62,7 +63,12 @@ func main() {
 	// d[2] = "Hritvik"
 	var head type List
 	head.val = 1
-	head.next = nil 
+	head.left = nil
+	head.right = nil
+	var head1 type List
+	head1.val = 1
+	head1.left = &head
+	head1.right = nil
 	// for {
 	// 	var x =3
 	// 	continue

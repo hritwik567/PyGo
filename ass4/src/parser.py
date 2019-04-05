@@ -1511,8 +1511,11 @@ def p_assignment(p):
             p[0].code += [["=", expr_place_list_key[i], expr_place_list_val[i]]]
         elif "string" in expr_type_list_key[i] and "string" in expr_type_list_val[i]:#TODO: should make this condition a bit strong ["array", ["string"]]
             p[0].code += [["=", expr_place_list_key[i], expr_place_list_val[i]]]
-        elif "pointer" in expr_type_list_key[i] and expr_type_list_val[i] == ["pointer", None, 0]:
-            p[0].code += [["=", expr_place_list_key[i], expr_place_list_val[i]]]
+        elif "pointer" in expr_type_list_key[i] and "pointer" in expr_type_list_val[i]:
+            if expr_type_list_val[i] == ["pointer", None, 0] or expr_type_list_key[i][:2] == expr_type_list_val[i][:2]:
+                p[0].code += [["=", expr_place_list_key[i], expr_place_list_val[i]]]
+            else:
+                raise TypeError(str(p.lineno(1)) + ": Type mismatch for identifier " + str(expr_place_list_key[i]))
         else:
             raise TypeError(str(p.lineno(1)) + ": Type mismatch for identifier " + str(expr_place_list_key[i]))
 
