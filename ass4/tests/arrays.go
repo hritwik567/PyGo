@@ -4,7 +4,6 @@ import "fmt"
 
 func main() {
   var c [3]float32
-  c[0] = 1 + 3
   var a = 2.01
   c[2] = a
   c[1] = a * 10.0
