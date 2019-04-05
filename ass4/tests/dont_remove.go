@@ -31,6 +31,10 @@ type T struct {
 	f float32
 }
 
+type List struct {
+  val int
+  next *type List
+}
 
 func main() {
 	// var a float32 = 2
@@ -52,10 +56,13 @@ func main() {
 	// var l = true
 	// var k = false
 	// var t = l||k
-	var d [3]string
-	d[0] = "Hritvik"
-	d[1] = "Hritvik"
-	d[2] = "Hritvik"
+	// var d [3]string
+	// d[0] = "Hritvik"
+	// d[1] = "Hritvik"
+	// d[2] = "Hritvik"
+	var head type List
+	head.val = 1
+	head.next = nil 
 	// for {
 	// 	var x =3
 	// 	continue

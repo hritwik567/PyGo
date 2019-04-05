@@ -225,7 +225,7 @@ def p_add_scope(p):
         if in_scope(p[-1]):
             raise NameError(str(p.lexer.lineno) + ": Function " + p[-1] + " already defined")
         p[0] = Node()
-        func_label = "_func_" + p[-1]
+        func_label = p[-1]
         end_func_label = "_end_" + func_label
         scopes[0].insert(p[-1], "function")
         scopes[0].update(p[-1], func_label, "label")
@@ -329,20 +329,25 @@ def p_type(p):
         p[0] = Node()
         p[0].type_list += ["type " + p[2]]
         info = find_info("type " + p[2], p.lineno(1), 0)
-        p[0].extra["methods"] = info["methods"]
-        p[0].extra["fields"] = info["fields"]
-        p[0].extra["fields_type"] = info["fields_type"]
-        p[0].extra["fields_size"] = info["fields_size"]
-        p[0].extra["size"] = info["size"]
+        p[0].extra["methods"] = info.get("methods")
+        p[0].extra["fields"] = info.get("fields")
+        p[0].extra["fields_type"] = info.get("fields_type")
+        p[0].extra["fields_size"] = info.get("fields_size")
+        p[0].extra["size"] = info.get("size")
     else:
         p[0] = p[1]
 
 def p_operand_name(p):
-    '''operand_name : IDENT'''
+    '''operand_name : IDENT
+                    | NIL'''
     p[0] = Node()
-    p[0].id_list = [p[1]]
-    p[0].type_list = ["identifier"]
-
+    if p[1] != "nil":
+        p[0].id_list = [p[1]]
+        p[0].type_list = ["identifier"]
+    else:
+        p[0].type_list = [["pointer", None, 0]]
+        p[0].place_list = [0]
+        p[0].extra["size"] = 4
 def p_type_name(p):
     '''type_name    : TYPE IDENT'''
     # check_shivansh
@@ -637,21 +642,21 @@ def p_type_spec(p):
     #TODO: Hritvik removed alias type add that it is pretty easy
     p[0] = p[1]
 
-# def p_alias_decl(p):
-#     '''alias_decl   : IDENT ASSIGN type'''
-#     p[0] = mytuple(["alias_decl"] + p[1:])
+def p_add_type(p):
+    '''add_type   :'''
+    p[0] = Node()
+    scopes[current_scope].insert("type " + p[-1], "struct")
 
 def p_type_def(p):
-    '''type_def : IDENT struct_type'''
+    '''type_def : IDENT add_type struct_type'''
     #TODO: Hritvik changed this to struct type
     p[0] = Node()
     global scopes, current_scope
-    scopes[current_scope].insert("type " + p[1], "struct")
     scopes[current_scope].update("type " + p[1], [], "methods")
-    scopes[current_scope].update("type " + p[1], p[2].extra["fields"], "fields")
-    scopes[current_scope].update("type " + p[1], p[2].extra["fields_type"], "fields_type")
-    scopes[current_scope].update("type " + p[1], p[2].extra["fields_size"], "fields_size")
-    scopes[current_scope].update("type " + p[1], p[2].extra["size"], "size")
+    scopes[current_scope].update("type " + p[1], p[3].extra["fields"], "fields")
+    scopes[current_scope].update("type " + p[1], p[3].extra["fields_type"], "fields_type")
+    scopes[current_scope].update("type " + p[1], p[3].extra["fields_size"], "fields_size")
+    scopes[current_scope].update("type " + p[1], p[3].extra["size"], "size")
 
 def p_var_decl(p):
     '''var_decl : VAR var_spec
@@ -1269,7 +1274,7 @@ def p_unary_expr(p):
                 p[0].extra["size"] = info["size"]
             else:
                 raise NameError(str(p.lineno(1)) + ": Variable " + str(p[0].id_list[0]) + " not defined")
-        elif "pointer" in p[0].type_list[0]:
+        elif "pointer" in p[0].type_list[0] and p[0].type_list[0][2] != 0:
             temp_v = new_temp()
             p[0].code += [["=", temp_v, "(load)", p[0].place_list[0]]]
             #Hritvik these 2 statemnts should be written in the following order
@@ -1505,6 +1510,8 @@ def p_assignment(p):
         if expr_type_list_key[i] == expr_type_list_val[i]:
             p[0].code += [["=", expr_place_list_key[i], expr_place_list_val[i]]]
         elif "string" in expr_type_list_key[i] and "string" in expr_type_list_val[i]:#TODO: should make this condition a bit strong ["array", ["string"]]
+            p[0].code += [["=", expr_place_list_key[i], expr_place_list_val[i]]]
+        elif "pointer" in expr_type_list_key[i] and expr_type_list_val[i] == ["pointer", None, 0]:
             p[0].code += [["=", expr_place_list_key[i], expr_place_list_val[i]]]
         else:
             raise TypeError(str(p.lineno(1)) + ": Type mismatch for identifier " + str(expr_place_list_key[i]))
