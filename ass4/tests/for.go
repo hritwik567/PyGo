@@ -3,14 +3,26 @@ package main
 import "fmt"
 
 func main() {
-	var sum = 0
-	for i := sum; i < sum + 10; i=i+1 {
-		sum = sum + i
-		if(sum > 100){
-			break;
-		}
-		if (i == 69){
-			continue
-		}
-	}
+  sum := 0
+  for i := 1; i <= 10; i++ {
+    sum = sum + i
+    continue
+    sum = sum - 1
+    break
+    sum++
+  }
+
+  i := 10
+  for i > 0 {
+    sum = sum - i
+    i--
+    continue
+    sum = sum + 1
+    break
+    sum--
+  }
+
+  for {
+    sum++
+  }
 }
