@@ -1,5 +1,7 @@
-main,function,0,-16
-temp3,int,4,-4
-temp4,int,4,-8
-temp5,int,4,-12
-temp7,int,4,-16
+foo,function,0,0
+main,function,0,-12
+temp3,int,4,0
+temp4,int,4,4
+temp8,int,4,-4
+temp9,int,4,-8
+temp15,int,4,-12

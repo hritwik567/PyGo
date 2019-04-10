@@ -37,9 +37,9 @@ type List struct {
 	right *type List
 }
 
-// func foo(a int, b int) {
-// 	c := a+b
-// }
+func foo(a int, b int) int {
+	return a+b
+}
 
 func main() {
 	// var a float32 = 2
@@ -65,13 +65,14 @@ func main() {
 	// d[0] = "Hritvik"
 	// d[1] = "Hritvik"
 	// d[2] = "Hritvik"
+	o := foo(1,2)
 	l := 3;
-	m := 4;
-	n := 5;
-	r := l + 1
-	//o := l*(m + m*(n + n*(l  + l*m*n)));
-	//k := l*m + m*n + n*l  + l*m*n;
-	// foo(1,2)
+	// m := 4;
+	// n := 5;
+	// r := l + 1
+	// o := l*(m + m*(n + n*(l  + l*m*n)));
+	// k := l*m + m*n + n*l  + l*m*n;
+	i := l*l + foo(1,2)*l
 	// var head type List
 	// head.val = 1
 	// head.left = nil

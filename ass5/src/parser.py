@@ -1042,12 +1042,12 @@ def p_primary_expr(p):
                     else:
                         raise TypeError(str(p.lineno(1)) + ": Function " + str(p[1].id_list[0]) + " should not be called with type " + str(j) + " at the index " + str(i))
                 p[0].code += [["call", info["label"]]]
+                p[0].code += [["pop", sum(info["parameter_size"])]]
                 if info["return_type"][0] != "void":
                     temp_v = new_temp()
                     p[0].code += [["=", temp_v, "return_value"]]
                 else:
                     temp_v = "temp_void"
-                p[0].code += [["pop", sum(info["parameter_size"])]]
                 p[0].place_list = [temp_v]
                 p[0].type_list = [info["return_type"][0]]
                 p[0].extra["size"] = info["return_size"][0]
@@ -1709,9 +1709,7 @@ def p_return_stmt(p):
     info = find_info(func_name, p.lexer.lineno, 0)
     scopes[0].update(func_name, True, "is_returning")
     if len(p) == 2:
-        if info["return_type"][0] == "void":
-            p[0].code += [["return"]]
-        elif info["return_temp"][0] != None:
+        if info["return_temp"][0] != None:
             p[0].code += [["return", info["return_temp"][0]]]
         else:
             raise TypeError(str(p.lineno(1)) + ": Return type is not void")

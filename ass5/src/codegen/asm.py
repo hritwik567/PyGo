@@ -1,6 +1,8 @@
 from regs import Register
 
-#FREE eax before calling a function
+#Free eax before function call
+#figure out how to use ecx and save it before function call
+#There might be a problem if the return value is never being used it may cause some issue
 
 class ASM:
     def __init__(self, tac, st):
@@ -43,6 +45,12 @@ class ASM:
         if self.edx.location != None:
             self.asm += self.edx.wb()
 
+    def free_regs(self):
+        self.eax.free()
+        self.ebx.free()
+        self.ecx.free()
+        self.edx.free()
+
     def get_asm(self):
         i = -1
         while i < len(self.tac) - 1:
@@ -50,15 +58,66 @@ class ASM:
             attr = self.tac[i]
             print(attr)
             if attr[0] == "label":
+                #TODO: do we need to write back the registers before any label
                 self.asm += [attr[1] + ":"]
             elif attr[0] == "func_begin":
+                self.free_regs()
                 self.asm += ["push %ebp", "movl %esp, %ebp"]
-                self.asm += ["subl $" + self.st[attr[1]][2][1:] + ", %esp"]
+                self.asm += ["sub $" + str(abs(int(self.st[attr[1]][2]))) + ", %esp"]
             elif attr[0] == "func_end":
                 self.write_back()
-                self.asm += ["movl %ebp, %esp", "pop %ebp", "ret"]
+                self.asm += ["movl %ebp, %esp", "pop %ebp", "ret", ""]
             elif attr[0] == "decl" or attr[0] == "argdecl":
                 pass
+            elif attr[0] == "return": #all the returns will have an arg
+                if attr[1] in self.temp_dict:
+                    self.asm += ["movl" + self.temp_dict[attr[1]] + ", %eax"]
+                elif attr[1] == self.eax.temp:
+                    print("Return value already in eax!")
+                    #TODO: do we need to free any regs here
+                elif attr[1] in self.st:
+                    self.asm += ["movl" + str(self.st[attr[1]][2]) + "(%ebp), %eax"]
+                self.asm += ["movl %ebp, %esp", "pop %ebp", "ret", ""] #can be optimized
+            elif attr[0] == "push":
+                self.write_back()
+                if self.edx.temp != None and self.edx.location == None:
+                    assert (False), "Should not be here"
+                temp_asm = []
+                if self.eax.temp != None and self.eax.location == None:
+                    self.edx.saver(self.eax)
+                    self.asm += ["push %eax"]
+                    self.eax.free()
+                    temp_asm = ["pop %edx"]
+
+                while self.tac[i][0] == "push":
+                    if self.tac[i][1] in self.temp_dict:
+                        self.asm += ["push " + self.temp_dict[self.tac[i][1]]]
+                    elif self.tac[i][1] in self.st:
+                        self.asm += ["push " + str(self.st[self.tac[i][1]][2]) + "(%ebp)"]
+                    else:
+                        assert (False), "Should not be here!"
+                    i += 1
+
+                if self.tac[i][0] == "call":
+                    self.asm += ["call " + self.tac[i][1]]
+                    i += 1
+                else:
+                    assert (False), "Should not be here!"
+
+                if self.tac[i][0] == "pop":
+                    if self.tac[i][1] != "0":
+                        self.asm += ["addl $" + self.tac[i][1] + ", %esp"]
+                    self.asm += temp_asm
+                    i += 1
+                else:
+                    assert (False), "Should not be here!"
+
+                if self.tac[i][0] == "=" and self.tac[i][2] == "return_value":
+                    if self.tac[i][1] in self.st:
+                         self.eax.save(self.tac[i][1], str(self.st[self.tac[i][1]][2]) + "(%ebp)")
+                    else:
+                         self.eax.save(self.tac[i][1])
+
             elif attr[0] == "=":
                 if attr[1] not in self.st:
                     if attr[2][:4] == "temp":
@@ -105,7 +164,7 @@ class ASM:
                     self.asm += ["movl " + self.temp_dict[attr[2]] + ", %eax"]
                     self.eax.save(attr[2])
                 elif attr[2] in self.st:
-                    self.asm += ["movl " + str(self.st[attr[2]][2]) + "(%ebp)" + ", %eax"]
+                    self.asm += ["movl " + str(self.st[attr[2]][2]) + "(%ebp), %eax"]
                     self.eax.save(attr[2], str(self.st[attr[2]][2]) + "(%ebp)")
                 elif attr[2] == self.eax.temp:
                     print("Already in eax!")
