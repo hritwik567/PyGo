@@ -1,6 +1,9 @@
 *.html
 *.ir
 *.symtab
+*.s
+*.pyc
+*.csymt
 *.out
 *.log
 *.aux
