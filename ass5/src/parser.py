@@ -697,18 +697,17 @@ def p_var_spec(p):
                 raise TypeError(str(p.lineno(3)) + ": Cannot assign type void")
             if p[3].place_list[i] in temp_array:
                 temp_v = new_temp()
-                p[0].code += [["decl", temp_v], ["=", temp_v, p[3].place_list[i]]]
+                p[0].code += [["decl", temp_v]] + p[3].code[i] + [["=", temp_v, p[3].place_list[i]]]
             else:
                 temp_v = p[3].place_list[i]
-                p[0].code += [["decl", temp_v]]
+                p[0].code += [["decl", temp_v]] + p[3].code[i]
             temp_array += [temp_v]
             scopes[current_scope].insert(id_list[i], expr_type_list[i])
             scopes[current_scope].update(id_list[i], p[3].extra["size"][i], "size")
             scopes[current_scope].update(id_list[i], temp_v, "temp")
             scopes[current_scope].update(id_list[i], True, "is_var")
-        p[0].code += p[3].code
     else:
-        p[0].code += p[2].code
+        assert (len(p[2].code) == 0), "Type should not have any code"
         if len(p[3].place_list) == 0:
             # not initialised with expressions
             id_list = p[1].id_list
@@ -742,10 +741,10 @@ def p_var_spec(p):
                 if p[2].type_list[0] == expr_type_list[i]:
                     if p[3].place_list[i] in temp_array:
                         temp_v = new_temp()
-                        p[0].code += [["decl", temp_v], ["=", temp_v, p[3].place_list[i]]]
+                        p[0].code += [["decl", temp_v]] + p[3].code[i] + [["=", temp_v, p[3].place_list[i]]]
                     else:
                         temp_v = p[3].place_list[i]
-                        p[0].code += [["decl", temp_v]]
+                        p[0].code += [["decl", temp_v]] + p[3].code[i]
                     temp_array += [temp_v]
                     scopes[current_scope].insert(p[1].id_list[i], p[2].type_list[0])
                     scopes[current_scope].update(id_list[i], p[2].extra["size"], "size")
@@ -753,7 +752,6 @@ def p_var_spec(p):
                     scopes[current_scope].update(id_list[i], True, "is_var")
                 else:
                     raise TypeError(str(p.lineno(1)) + ": Type mismatch for identifier:" + str(id_list[i]))
-        p[0].code += p[3].code
 def p_expr_list_assign_opt(p):
     '''expr_list_assign_opt : ASSIGN expression_list
                             | epsilon'''
@@ -1043,10 +1041,10 @@ def p_primary_expr(p):
                 info = find_info(p[1].id_list[0], p.lineno(1), 0)
             if info["type"] == "function" or info["type"] == "signature":
                 p[0] = Node()
-                p[0].code += p[3].code
-                for i, j in enumerate(info["parameter_type"][::-1]):
+                p[0].code += [["push_begin"]]
+                for i, j in reversed(list(enumerate(info["parameter_type"]))):
                     if p[3].type_list[i] == j and p[3].extra["size"][i] == info["parameter_size"][i]:
-                        p[0].code += [["push", p[3].place_list[i]]]
+                        p[0].code += p[3].code[i] + [["push", p[3].place_list[i]]]
                     else:
                         raise TypeError(str(p.lineno(1)) + ": Function " + str(p[1].id_list[0]) + " should not be called with type " + str(j) + " at the index " + str(i))
                 p[0].code += [["call", info["label"]]]
@@ -1325,8 +1323,9 @@ def p_unary_expr(p):
                 p[0] = p[2]
                 temp_v = new_temp()
                 p[0].code += [["(load)", temp_v, p[2].place_list[0]]]
-                p[0].type_list = p[2].type_list[0][1]
-                p[0].size = p[2].type_list[0][2]
+                #Hritvik in this same order
+                p[0].extra["size"] = p[2].type_list[0][2]
+                p[0].type_list = [p[2].type_list[0][1]]
                 p[0].place_list = [temp_v]
             else:
                 raise TypeError(str(p.lineno(1)) + ": Type Mismatch with unary operator" + str(p[1]))
@@ -1337,6 +1336,7 @@ def p_unary_expr(p):
             p[0].code += [["(addr)", temp_v, p[2].place_list[0]]]
             p[0].type_list = [["pointer", p[2].type_list[0], p[2].extra["size"]]]
             p[0].place_list = [temp_v]
+            p[0].extra["size"] = 4
 
 def p_unary_op(p):
     '''unary_op : ADD
@@ -1354,11 +1354,11 @@ def p_expression_opt(p):
 
 def p_expression_list(p):
     '''expression_list  : expression expression_rep'''
-    p[0] = p[2]
-    p[0].place_list += p[1].place_list
-    p[0].type_list += p[1].type_list
-    p[0].code += p[1].code
-    p[0].extra["size"] += [p[1].extra["size"]]
+    p[0] = p[1]
+    p[0].place_list += p[2].place_list
+    p[0].type_list += p[2].type_list
+    p[0].code = [p[0].code] + p[2].code
+    p[0].extra["size"] = [p[0].extra["size"]] + p[2].extra["size"]
 
 def p_expression_rep(p):
     '''expression_rep   : COMMA expression expression_rep
@@ -1367,11 +1367,11 @@ def p_expression_rep(p):
         p[0] = p[1]
         p[0].extra["size"] = []
     else:
-        p[0] = p[3]
-        p[0].place_list += p[2].place_list
-        p[0].type_list += p[2].type_list
-        p[0].code += p[2].code
-        p[0].extra["size"] += [p[2].extra["size"]]
+        p[0] = p[2]
+        p[0].place_list += p[3].place_list
+        p[0].type_list += p[3].type_list
+        p[0].code = [p[0].code] + p[3].code
+        p[0].extra["size"] = [p[0].extra["size"]] + p[3].extra["size"]
 
 def p_identifier_list(p):
     '''identifier_list  : identifier_list COMMA IDENT
@@ -1502,8 +1502,7 @@ def p_assignment(p):
     '''assignment   : expression_list ASSIGN expression_list'''
     #Hritvik canges assign_op to ASSIGN
     global scopes, current_scope
-    p[0] = p[1]
-    p[0].code += p[3].code
+    p[0] = Node()
     if len(p[1].place_list) != len(p[3].place_list):
         raise ArithmeticError(str(p.lineno(3)) + ": Different Number of expressions and and their values")
 
@@ -1516,12 +1515,21 @@ def p_assignment(p):
         # typecast = typecast or (expr_type_list_key[i].startswith("int") and "int" in expr_type_list_val[i])
         # typecast = typecast or (expr_type_list_key[i].startswith("uint") and "uint" in expr_type_list_val[i])
         if expr_type_list_key[i] == expr_type_list_val[i]:
-            p[0].code += [["=", expr_place_list_key[i], expr_place_list_val[i]]]
+            if len(p[1].code[i]) > 0 and p[1].code[i][-1][0] == "(load)" and p[1].code[i][-1][1] == expr_place_list_key[i]:
+                p[0].code += p[3].code[i] + p[1].code[i][:-1] + [["(store)", p[1].code[i][-1][2], expr_place_list_val[i]]]
+            else:
+                p[0].code += p[3].code[i] + p[1].code[i] + [["=", expr_place_list_key[i], expr_place_list_val[i]]]
         elif "string" in expr_type_list_key[i] and "string" in expr_type_list_val[i]:#TODO: should make this condition a bit strong ["array", ["string"]]
-            p[0].code += [["=", expr_place_list_key[i], expr_place_list_val[i]]]
+            if len(p[1].code[i]) > 0 and p[1].code[i][-1][0] == "(load)" and p[1].code[i][-1][1] == expr_place_list_key[i]:
+                p[0].code += p[3].code[i] + p[1].code[i][:-1] + [["(store)", p[1].code[i][-1][2], expr_place_list_val[i]]]
+            else:
+                p[0].code += p[3].code[i] + p[1].code[i] + [["=", expr_place_list_key[i], expr_place_list_val[i]]]
         elif "pointer" in expr_type_list_key[i] and "pointer" in expr_type_list_val[i]:
             if expr_type_list_val[i] == ["pointer", None, 0] or expr_type_list_key[i][:2] == expr_type_list_val[i][:2]:
-                p[0].code += [["=", expr_place_list_key[i], expr_place_list_val[i]]]
+                if len(p[1].code[i]) > 0 and p[1].code[i][-1][0] == "(load)" and p[1].code[i][-1][1] == expr_place_list_key[i]:
+                    p[0].code += p[3].code[i] + p[1].code[i][:-1] + [["(store)", p[1].code[i][-1][2], expr_place_list_val[i]]]
+                else:
+                    p[0].code += p[3].code[i] + p[1].code[i] + [["=", expr_place_list_key[i], expr_place_list_val[i]]]
             else:
                 raise TypeError(str(p.lineno(1)) + ": Type mismatch for identifier " + str(expr_place_list_key[i]))
         else:
@@ -1606,11 +1614,11 @@ def p_expr_switch_case(p):
             var_list = copy.deepcopy(p[2].place_list)
             for temp_var in var_list:
                 new_temp_var = new_temp()
-                p[0].code += [[new_temp_var, "=", switch_var, "==", temp_var]]
+                p[0].code += [["==", new_temp_var, switch_var, temp_var]]
                 bool_list += [new_temp_var]
             for temp_var in bool_list[:len(bool_list)-1]:
                 new_temp_var = new_temp()
-                p[0].code += [[new_temp_var, "=", bool_list[0], "||", bool_list[1]]]
+                p[0].code += [["||", new_temp_var, bool_list[0], bool_list[1]]]
                 bool_list = [new_temp_var] + bool_list[2:]
             p[0].code += [["if not", bool_list[0], "then goto", next_label]]
 
@@ -1621,7 +1629,7 @@ def p_expr_switch_case(p):
             var_list = copy.deepcopy(p[2].place_list)
             for temp_var in var_list[:len(var_list)-1]:
                 new_temp_var = new_temp()
-                p[0].code += [[new_temp_var, "=", var_list[0], "||", var_list[1]]]
+                p[0].code += [["||", new_temp_var, var_list[0], var_list[1]]]
                 var_list = [new_temp_var] + var_list[2:]
             p[0].code += [["if not", var_list[0], "then goto", next_label]]
 
@@ -1722,7 +1730,7 @@ def p_return_stmt(p):
         else:
             raise TypeError(str(p.lineno(1)) + ": Return type is not void")
     else:
-        p[0].code += p[2].code
+        p[0].code += p[2].code[0]
         if info["return_type"][0] == p[2].type_list[0]:
             p[0].code += [["return", p[2].place_list[0]]]
         else:

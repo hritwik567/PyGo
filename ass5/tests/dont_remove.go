@@ -37,18 +37,20 @@ type List struct {
 	right *type List
 }
 
-// func foo(a int, b int) int {
-// 	c := a+b
-// 	return c
-// }
+func foo(a int, b int) int {
+	c := a+b
+	return c
+}
 
 func main() {
 	// var a float32 = 2
-	// var b = 2
+	var b = 2
 	// b = foo(b)
-	// l := 3
-	// var c [3]int
-	// c[0] = l + l*l + l*l*l*l*l + l*l
+	var l *int
+	l = &b;
+	*l = 2
+	var c [3]int
+	c[0] = *l + foo(*l, c[0])
 	//
 	// {
 	// 	var a = 2.01
@@ -58,8 +60,8 @@ func main() {
 	// var d type T
 	// d.a.c[2] = 4
 	// d.c[0] = 3
-	var e [2][3][4]int
-	e[0][1][2] = 3
+	// var e [2][3][4]int
+	// e[0][1][2] = 3
 	// var l = true
 	// var k = false
 	// var t = l||k
