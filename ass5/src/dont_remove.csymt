@@ -1,7 +1,2 @@
-foo,function,0,0
-main,function,0,-12
-temp3,int,4,0
-temp4,int,4,4
-temp8,int,4,-4
-temp9,int,4,-8
-temp15,int,4,-12
+main,function,0,-96
+temp6,"['array', ['array', ['array', 'int', 4], 16], 48]",96,-96

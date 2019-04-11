@@ -13,6 +13,9 @@ class Register:
         self.temp = reg.temp
         self.location = reg.location
 
+    def printr(self):
+        print(self.temp, self.location)
+    
     def wb(self):
         if self.location != None:
             return ["movl " + self.name + ", " + self.location]

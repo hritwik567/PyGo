@@ -74,8 +74,12 @@ def add_to_import_table(package, ident, line):
     else:
         import_dict[package] = [ident]
 
-def in_scope(ident):
+def in_scope(ident, scope = None):
     global scope_stack, scopes
+    if scope != None:
+        if scopes[scope].look_up(ident):
+            return True
+        return False
     for scope in scope_stack[::-1]:
         if scopes[scope].look_up(ident):
             return True
@@ -801,6 +805,7 @@ def p_function_decl(p):
             temp_array = [x for x in temp_array if x not in p[4].extra["return_temp"]]
             del scopes[p[4].extra["scope"]]
             scopes[0].insert("signature_" + p[2], "signature")
+            scopes[0].update("signature_" + p[2], "_func_" + p[2], "label")
             p[0] = p[4]
             scopes[0].update("signature_" + p[2], p[0].type_list , "parameter_type")
             scopes[0].update("signature_" + p[2], p[0].id_list , "parameter_id")
@@ -1032,8 +1037,11 @@ def p_primary_expr(p):
     #     if p[1].id_list[0] == "identifier":
     elif p[2] == "(":
         if p[1].type_list[0] == "identifier":
-            info = find_info(p[1].id_list[0], p.lineno(1), 0)
-            if info["type"] == "function":
+            if not in_scope(p[1].id_list[0]):
+                info = find_info("signature_" + p[1].id_list[0], p.lineno(1), 0)
+            else:
+                info = find_info(p[1].id_list[0], p.lineno(1), 0)
+            if info["type"] == "function" or info["type"] == "signature":
                 p[0] = Node()
                 p[0].code += p[3].code
                 for i, j in enumerate(info["parameter_type"][::-1]):
@@ -1806,19 +1814,20 @@ for scope in scopes[1:]:
     if scope.parent == 0:
         sumv = 0
     else:
-        sumv = scopes[scope.parent].table["__offset"]
+        sumv = scopes[scope.parent].table.get("__offset")
+        sumv = 0 if sumv == None else sumv["value"]
     for key in scope.table:
         if "is_var" in scope.table[key]:
             if "is_param" in scope.table[key]:
-                scope.table[key]["offset"] = sump
                 sump = sump + scope.table[key]["size"]
+                scope.table[key]["offset"] = sump
             else:
                 sumv = sumv - scope.table[key]["size"]
                 scope.table[key]["offset"] = sumv
     if scope.parent == 0:
         scopes[0].table[scope.table["__FuncName"]["value"]]["offset"] = sumv
     else:
-        scopes[scope.parent].table["__offset"] = sumv
+        scopes[scope.parent].table["__offset"] = {"value": sumv}
 
 f = open(args.out[:-3] + ".symtab", "w")
 pp = pprint.PrettyPrinter(indent=3, stream=f)

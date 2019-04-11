@@ -1,5 +1,6 @@
 import sys
 import asm
+import csv
 
 if len(sys.argv) != 3:
     print("Usage: python main.py <.ir> <.csymt>")
@@ -7,17 +8,17 @@ if len(sys.argv) != 3:
 
 #Load 3AC
 f = open(sys.argv[1])
-tac = f.read()
+reader = csv.reader(f, delimiter=',', quotechar="'")
+tac = [row for row in reader]
 f.close()
-tac = [ i.split(',') for i in tac.split()]
 
 #Load Symbol Table
 f = open(sys.argv[2])
-_st = f.read()
-f.close()
+reader = csv.reader(f, delimiter=',', quotechar='"')
 st = {}
-for i in _st.split():
-    st[i.split(',')[0]] = i.split(',')[1:]
+for row in reader:
+    st[row[0]] = row[1:]
+f.close()
 
 assembly = asm.ASM(tac, st)
 f = open(sys.argv[1][:-3] + ".s", "w")
