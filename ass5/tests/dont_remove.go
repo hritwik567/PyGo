@@ -45,12 +45,16 @@ func foo(a int, b int) int {
 func main() {
 	// var a float32 = 2
 	var b = 2
-	// b = foo(b)
-	var l *int
-	l = &b;
-	*l = 2
-	var c [3]int
-	c[0] = *l + foo(*l, c[0])
+	// var l *int
+	// l = &b;
+	// *l = 2
+	// var c [3]int
+	// c[0] = *l + foo(foo(1,2), c[0])
+	var a = fopen("abc", "w+")
+	fprintf(a, "Hritvik taneja\n")
+	// scanf("%d", &b)
+	printf("Hritvik, taneja %d\n", b)
+
 	//
 	// {
 	// 	var a = 2.01

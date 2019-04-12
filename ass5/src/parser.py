@@ -42,8 +42,17 @@ sizeof = dict()
 sizeof["uint8"] = 1; sizeof["uint16"] = 2; sizeof["uint32"] = 4; sizeof["uint"] = 4; sizeof["uint64"] = 8;
 sizeof["int8"] = 1; sizeof["int16"] = 2; sizeof["int32"] = 4; sizeof["int"] = 4; sizeof["int64"] = 8;
 sizeof["float32"] = 4; sizeof["float64"] = 8;
-sizeof["byte"] = 1; sizeof["bool"] = 1; sizeof["string"] = 4;
+sizeof["byte"] = 1; sizeof["bool"] = 1; sizeof["string"] = 4; sizeof["file"] = 4
 temp_array = [] #used to store the temporary varibles used to define an array
+
+#-------------------------LIBC stuff-----------------------------------------
+libc_functions = {"printf" : {"return_type" : "int", "return_size": sizeof["int"]}}
+libc_functions["scanf"] = {"return_type" : "int", "return_size": sizeof["int"]}
+libc_functions["fprintf"] = {"return_type" : "int", "return_size": sizeof["int"]}
+libc_functions["fscanf"] = {"return_type" : "int", "return_size": sizeof["int"]}
+libc_functions["fopen"] = {"return_type": "file", "return_size": sizeof["file"]}
+libc_functions["fclose"] = {"return_type": "int", "return_size": sizeof["int"]}
+
 
 def is_number(s):
     if s == True or s == False:
@@ -897,7 +906,7 @@ def p_basic_lit(p):
         p[0].place_list = [temp_v]
         p[0].code = [["=", temp_v, "'" + p[1][1:-1] + "'"]]
         p[0].type_list = [["string", len(p[1][1:-1])]]
-        p[0].extra["size"] = len(p[1])
+        p[0].extra["size"] = sizeof["string"]
 
 def p_int_lit(p):
     '''int_lit  : DECIMAL_LIT
@@ -1035,28 +1044,38 @@ def p_primary_expr(p):
     #     if p[1].id_list[0] == "identifier":
     elif p[2] == "(":
         if p[1].type_list[0] == "identifier":
-            if not in_scope(p[1].id_list[0]):
+            bypass = True if p[1].id_list[0] in libc_functions else False
+            if not bypass and not in_scope(p[1].id_list[0]):
                 info = find_info("signature_" + p[1].id_list[0], p.lineno(1), 0)
-            else:
+            elif not bypass:
                 info = find_info(p[1].id_list[0], p.lineno(1), 0)
-            if info["type"] == "function" or info["type"] == "signature":
+            if bypass or info["type"] == "function" or info["type"] == "signature":
                 p[0] = Node()
                 p[0].code += [["push_begin"]]
-                for i, j in reversed(list(enumerate(info["parameter_type"]))):
-                    if p[3].type_list[i] == j and p[3].extra["size"][i] == info["parameter_size"][i]:
+                parameter_pushed_size = 0
+                for i, j in reversed(list(enumerate(p[3].type_list))):
+                    if bypass or (j == info["parameter_type"][i] and p[3].extra["size"][i] == info["parameter_size"][i]):
+                        parameter_pushed_size += p[3].extra["size"][i]
                         p[0].code += p[3].code[i] + [["push", p[3].place_list[i]]]
                     else:
                         raise TypeError(str(p.lineno(1)) + ": Function " + str(p[1].id_list[0]) + " should not be called with type " + str(j) + " at the index " + str(i))
-                p[0].code += [["call", info["label"]]]
-                p[0].code += [["pop", sum(info["parameter_size"])]]
-                if info["return_type"][0] != "void":
+                if bypass:
+                    p[0].code += [["call", p[1].id_list[0]]]
+                else:
+                    p[0].code += [["call", info["label"]]]
+                p[0].code += [["pop", parameter_pushed_size]]
+                if bypass or info["return_type"][0] != "void":
                     temp_v = new_temp()
                     p[0].code += [["=", temp_v, "return_value"]]
                 else:
                     temp_v = "temp_void"
                 p[0].place_list = [temp_v]
-                p[0].type_list = [info["return_type"][0]]
-                p[0].extra["size"] = info["return_size"][0]
+                if bypass:
+                    p[0].type_list = [libc_functions[p[1].id_list[0]]["return_type"]]
+                    p[0].extra["size"] = libc_functions[p[1].id_list[0]]["return_size"]
+                else:
+                    p[0].type_list = [info["return_type"][0]]
+                    p[0].extra["size"] = info["return_size"][0]
             else:
                 raise NameError(str(p.lineno(1)) + ": Variable " + str(p[0].id_list[0]) + " not defined")
         else:

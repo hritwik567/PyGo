@@ -8,7 +8,7 @@ if len(sys.argv) != 3:
 
 #Load 3AC
 f = open(sys.argv[1])
-reader = csv.reader(f, delimiter=',', quotechar="'")
+reader = csv.reader(f, delimiter=',')
 tac = [row for row in reader]
 f.close()
 

@@ -137,7 +137,9 @@ class ASM:
             elif attr[0] == "call":
                 self.asm += ["call " + attr[1]]
                 i += 1
-
+                self.eax.free()
+                self.edx.free()
+                self.edi.free()
                 if self.tac[i][0] == "pop":
                     if self.tac[i][1] != "0":
                         self.asm += ["addl $" + self.tac[i][1] + ", %esp"]
@@ -186,6 +188,7 @@ class ASM:
                     if attr[2][:4] == "temp":
                         assert (False), "Should not be here!"
                     else:
+                        print("attr[2]", attr[2][0])
                         if attr[2][0] == "'":
                             self.constants += [attr[1] + ': .string "' + attr[2][1:-1] + '"']
                             self.temp_dict[attr[1]] = "$" + attr[1]

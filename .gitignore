@@ -11,4 +11,4 @@ _minted*
 __pycache__
 parsetab.py
 .gdb_history
-peda-session-out.txt
+peda-session*
