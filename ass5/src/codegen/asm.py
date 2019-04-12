@@ -5,6 +5,15 @@ from regs import Register
 #There might be a problem if the return value is never being used it may cause some issue
 # Verify the support for pointer and stuff dereferencing and stuff
 
+def is_int(s):
+    if s == True or s == False:
+        return False
+    try:
+        int(s)
+    except ValueError:
+        return False
+    return True
+
 class ASM:
     def __init__(self, tac, st):
         self.tac = tac
@@ -20,6 +29,8 @@ class ASM:
 
         #used for func calls
         self.temp_asm = []
+
+        self.op_map = {"int_+": "addl", "int_*": "imul", "int_-": "sub", "int_&": "and", "int_|": "or", "int_^": "xor"}
 
     def generate(self):
         self.asm += ["main:", "call _func_main", "push $0", "call exit", ""]
@@ -128,7 +139,10 @@ class ASM:
                 if attr[1] in self.temp_dict:
                     self.asm += ["push " + self.temp_dict[self.tac[i][1]]]
                 elif attr[1] in self.st:
-                    self.asm += ["push " + str(self.st[self.tac[i][1]][2]) + "(%ebp)"]
+                    attr[2] = int(attr[2])
+                    while attr[2] != 0:
+                        attr[2] -= 4
+                        self.asm += ["push " + str(int(self.st[self.tac[i][1]][2]) + attr[2]) + "(%ebp)"]
                 elif self.in_regs(attr[1]):
                     self.asm += ["push " + self.in_regs(attr[1]).name]
                     self.in_regs(attr[1]).free()
@@ -181,6 +195,9 @@ class ASM:
                 elif attr[2] in self.temp_dict:
                     self.asm += ["movl " + self.temp_dict[attr[2]] + ", (%eax)"]
                     self.eax.free()
+                elif attr[2] == "0":
+                    self.asm += ["movl $0, (%eax)"]
+                    self.eax.free()
                 else:
                     assert (False), "Should not be here!"
             elif attr[0] == "=":
@@ -188,7 +205,6 @@ class ASM:
                     if attr[2][:4] == "temp":
                         assert (False), "Should not be here!"
                     else:
-                        print("attr[2]", attr[2][0])
                         if attr[2][0] == "'":
                             self.constants += [attr[1] + ': .string "' + attr[2][1:-1] + '"']
                             self.temp_dict[attr[1]] = "$" + attr[1]
@@ -213,7 +229,7 @@ class ASM:
                             self.save("$" + attr[1], attr[1], str(self.st[attr[1]][2]) + "(%ebp)")
                         else:
                             self.save("$" + attr[2], attr[1], str(self.st[attr[1]][2]) + "(%ebp)")
-            elif attr[0] == "int_+" or attr[0] == "int_*":
+            elif attr[0] in self.op_map:
                 self.write_back()
                 if self.eax.location == None and self.eax.temp != attr[2] and self.eax.temp != attr[3]:
                     if self.edx.temp != None and self.edx.location == None:
@@ -237,13 +253,19 @@ class ASM:
                 elif attr[2] in self.st:
                     self.asm += ["movl " + str(self.st[attr[2]][2]) + "(%ebp), %eax"]
                     self.eax.save(attr[2], str(self.st[attr[2]][2]) + "(%ebp)")
+                elif is_int(attr[2]):
+                    self.asm += ["movl $" + str(attr[2]) + ", %eax"]
                 elif attr[2] == self.eax.temp:
                     print("Already in eax!")
                 else:
                     assert (False), "Should not be here!"
 
-                op = "addl" if attr[0] == "int_+" else "imul"
-                if self.ebx.temp == attr[3]:
+
+                op = self.op_map[attr[0]]
+
+                if self.eax.temp == attr[3]:
+                    self.asm += [op + " %eax, %eax"]
+                elif self.ebx.temp == attr[3]:
                     self.asm += [op + " %ebx, %eax"]
                     self.ebx.free()
                 elif self.edx.temp == attr[3]:
@@ -256,7 +278,10 @@ class ASM:
                         self.asm += ["movl " + self.temp_dict[attr[3]] + ", %ebx", "imul %ebx %eax"]
                 elif attr[3] in self.st:
                     self.asm += [op + " " + str(self.st[attr[3]][2]) + "(%ebp)" + ", %eax"]
-
+                elif is_int(attr[3]):
+                    self.asm += [op + " $" + str(attr[3]) + ", %eax"]
+                else:
+                    assert (False), "Should not be here!"
 
                 self.eax.free()
                 if attr[1] in self.st:
@@ -264,3 +289,5 @@ class ASM:
                 else:
                     self.eax.free()
                     self.eax.save(attr[1])
+            else:
+                assert (False), "Instruction not supported yet"

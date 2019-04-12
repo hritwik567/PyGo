@@ -52,6 +52,7 @@ libc_functions["fprintf"] = {"return_type" : "int", "return_size": sizeof["int"]
 libc_functions["fscanf"] = {"return_type" : "int", "return_size": sizeof["int"]}
 libc_functions["fopen"] = {"return_type": "file", "return_size": sizeof["file"]}
 libc_functions["fclose"] = {"return_type": "int", "return_size": sizeof["int"]}
+libc_functions["malloc"] = {"return_type": ["pointer", None, None], "return_size": 4}
 
 
 def is_number(s):
@@ -1056,7 +1057,7 @@ def p_primary_expr(p):
                 for i, j in reversed(list(enumerate(p[3].type_list))):
                     if bypass or (j == info["parameter_type"][i] and p[3].extra["size"][i] == info["parameter_size"][i]):
                         parameter_pushed_size += p[3].extra["size"][i]
-                        p[0].code += p[3].code[i] + [["push", p[3].place_list[i]]]
+                        p[0].code += p[3].code[i] + [["push", p[3].place_list[i], p[3].extra["size"][i]]]
                     else:
                         raise TypeError(str(p.lineno(1)) + ": Function " + str(p[1].id_list[0]) + " should not be called with type " + str(j) + " at the index " + str(i))
                 if bypass:
@@ -1837,7 +1838,7 @@ f.close()
 output = parser.parse(data, tracking=True)
 
 for scope in scopes[1:]:
-    sump = 0
+    sump = 8
     if scope.parent == 0:
         sumv = 0
     else:
@@ -1846,8 +1847,8 @@ for scope in scopes[1:]:
     for key in scope.table:
         if "is_var" in scope.table[key]:
             if "is_param" in scope.table[key]:
-                sump = sump + scope.table[key]["size"]
                 scope.table[key]["offset"] = sump
+                sump = sump + scope.table[key]["size"]
             else:
                 sumv = sumv - scope.table[key]["size"]
                 scope.table[key]["offset"] = sumv
