@@ -31,6 +31,7 @@ class ASM:
         self.temp_asm = []
 
         self.op_map = {"int_+": "addl", "int_*": "imul", "int_-": "sub", "int_&": "and", "int_|": "or", "int_^": "xor"}
+        self.rel_op = {"int_<": "jle", "int_<=": "jl", "int_==": "je", "int_!=": "jne", "int_>": "jg", "int_>=": "jge"}
 
     def generate(self):
         self.asm += ["main:", "call _func_main", "push $0", "call exit", ""]
@@ -82,6 +83,9 @@ class ASM:
             print(attr)
             if attr[0] == "label":
                 #TODO: do we need to write back the registers before any label
+                if "_end_if_" in attr[1]:
+                    self.write_back()
+                    self.free_regs()
                 self.asm += [attr[1] + ":"]
             elif attr[0] == "func_begin":
                 self.free_regs()
@@ -89,7 +93,7 @@ class ASM:
                 self.asm += ["sub $" + str(abs(int(self.st[attr[1]][2]))) + ", %esp"]
             elif attr[0] == "func_end":
                 self.write_back()
-                self.asm += ["movl %ebp, %esp", "pop %ebp", "ret", ""]
+                self.asm += [attr[1] + ":", "movl %ebp, %esp", "pop %ebp", "ret", ""]
             elif attr[0] == "decl" or attr[0] == "argdecl":
                 pass
             elif attr[0] == "(addr)":
@@ -119,9 +123,14 @@ class ASM:
                     #TODO: do we need to free any regs here
                 elif attr[1] in self.st:
                     self.asm += ["movl" + str(self.st[attr[1]][2]) + "(%ebp), %eax"]
-                self.asm += ["movl %ebp, %esp", "pop %ebp", "ret", ""] #can be optimized
+            elif attr[0] == "goto":
+                if "_end_if_" in attr[1]:
+                    self.write_back()
+                    self.free_regs()
+                self.asm += ["jmp " + attr[1]]
             elif attr[0] == "push_begin":
                 self.write_back()
+                print(self.edx.temp, self.edx.location)
                 if self.edx.temp != None and self.edx.location == None:
                     assert (False), "Should not be here"
                 if self.eax.temp != None and self.eax.location == None:
@@ -231,7 +240,7 @@ class ASM:
                             self.save("$" + attr[2], attr[1], str(self.st[attr[1]][2]) + "(%ebp)")
             elif attr[0] in self.op_map:
                 self.write_back()
-                if self.eax.location == None and self.eax.temp != attr[2] and self.eax.temp != attr[3]:
+                if self.eax.temp != None and self.eax.location == None and self.eax.temp != attr[2] and self.eax.temp != attr[3]:
                     if self.edx.temp != None and self.edx.location == None:
                         self.asm += ["movl %edx, %edi"]
                         self.edi.saver(self.edx)
@@ -272,10 +281,10 @@ class ASM:
                     self.asm += [op + " %edx, %eax"]
                     self.edx.free()
                 elif attr[3] in self.temp_dict:
-                    if op == "addl":
-                        self.asm += ["addl " + self.temp_dict[attr[3]] + ", %eax"]
-                    else:
+                    if op == "imul":
                         self.asm += ["movl " + self.temp_dict[attr[3]] + ", %ebx", "imul %ebx %eax"]
+                    else:
+                        self.asm += [op + " " + self.temp_dict[attr[3]] + ", %eax"]
                 elif attr[3] in self.st:
                     self.asm += [op + " " + str(self.st[attr[3]][2]) + "(%ebp)" + ", %eax"]
                 elif is_int(attr[3]):
@@ -289,5 +298,58 @@ class ASM:
                 else:
                     self.eax.free()
                     self.eax.save(attr[1])
+
+            elif attr[0] == "if" and attr[1] in self.rel_op:
+                self.write_back()
+                if self.eax.temp != None and self.eax.location == None and self.eax.temp != attr[2] and self.eax.temp != attr[3]:
+                    if self.edx.temp != None and self.edx.location == None:
+                        self.asm += ["movl %edx, %edi"]
+                        self.edi.saver(self.edx)
+                    self.asm += ["movl %eax, %edx"]
+                    self.edx.saver(self.eax)
+
+                if self.eax.temp == attr[3]:
+                    self.ebx.save(attr[3]) #should add the location
+                    self.asm += ["movl %eax, %ebx"]
+
+                if attr[2] == self.edx.temp:
+                    self.asm += ["movl %edx, %eax"]
+                    self.eax.saver(self.edx)
+                    self.edx.free()
+                elif attr[2] in self.temp_dict:
+                    self.asm += ["movl " + self.temp_dict[attr[2]] + ", %eax"]
+                    self.eax.free()
+                    self.eax.save(attr[2])
+                elif attr[2] in self.st:
+                    self.asm += ["movl " + str(self.st[attr[2]][2]) + "(%ebp), %eax"]
+                    self.eax.save(attr[2], str(self.st[attr[2]][2]) + "(%ebp)")
+                elif is_int(attr[2]):
+                    self.asm += ["movl $" + str(attr[2]) + ", %eax"]
+                elif attr[2] == self.eax.temp:
+                    print("Already in eax!")
+                else:
+                    assert (False), "Should not be here!"
+
+
+                op = self.rel_op[attr[1]]
+
+                if self.eax.temp == attr[3]:
+                    self.asm += ["cmp %eax, %eax", op + " " + attr[5]]
+                elif self.ebx.temp == attr[3]:
+                    self.asm += ["cmp %ebx, %eax", op + " " + attr[5]]
+                    self.ebx.free()
+                elif self.edx.temp == attr[3]:
+                    self.asm += ["cmp %edx, %eax", op + " " + attr[5]]
+                    self.edx.free()
+                elif attr[3] in self.temp_dict:
+                    self.asm += ["cmp " + self.temp_dict[attr[3]] + ", %eax", op + " " + attr[5]]
+                elif attr[3] in self.st:
+                    self.asm += ["cmp " + str(self.st[attr[3]][2]) + "(%ebp)" + ", %eax", op + " " + attr[5]]
+                elif is_int(attr[3]):
+                    self.asm += ["cmp $" + str(attr[3]) + ", %eax", op + " " + attr[5]]
+                else:
+                    assert (False), "Should not be here!"
+
+                self.free_regs()
             else:
                 assert (False), "Instruction not supported yet"

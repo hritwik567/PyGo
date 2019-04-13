@@ -44,11 +44,11 @@ func foo(a type List) int {
 
 func main() {
 	// var a float32 = 2
-	var head type List
-	head.val = 1
-	head.left = nil
-	head.right = nil
-	b := foo(head)
+	// var head type List
+	// head.val = 1
+	// head.left = nil
+	// head.right = nil
+	// b := foo(head)
 	// var b = 2
 	// var l *int
 	// l = &b;
@@ -59,7 +59,7 @@ func main() {
 	// var a = fopen("abc", "w+")
 	// fprintf(a, "Hritvik taneja\n")
 	// scanf("%d", &b)
-	printf("Hritvik, taneja %d\n", b)
+	// printf("Hritvik, taneja %d\n", b)
 
 	//
 	// {
@@ -101,15 +101,21 @@ func main() {
 	// 	break
 	// }
 	// var t = true
-	// var a = 4
-	// var b = 5
-	// if a < b {
-	// 	var x = 3
-	// } else if true {
-	// 		var x = 5
-	// } else {
-	// 		var x = 4
-	// }
+	var a = 4
+	var b = 5
+	var x = 2
+
+	if a < b || a == 4 {
+		printf("here1\n")
+		x = 3
+	} else if true {
+		printf("here2\n")
+			x = 5
+	} else {
+		printf("here3\n")
+			x = 4
+	}
+	printf("%d\n", x)
 
 
 }

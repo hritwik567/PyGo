@@ -39,10 +39,10 @@ temp_ctr = 0
 label_ctr = 0
 label_dict = dict()
 sizeof = dict()
-sizeof["uint8"] = 1; sizeof["uint16"] = 2; sizeof["uint32"] = 4; sizeof["uint"] = 4; sizeof["uint64"] = 8;
-sizeof["int8"] = 1; sizeof["int16"] = 2; sizeof["int32"] = 4; sizeof["int"] = 4; sizeof["int64"] = 8;
-sizeof["float32"] = 4; sizeof["float64"] = 8;
-sizeof["byte"] = 1; sizeof["bool"] = 1; sizeof["string"] = 4; sizeof["file"] = 4
+sizeof["uint8"] = 4; sizeof["uint16"] = 2; sizeof["uint32"] = 4; sizeof["uint"] = 4; sizeof["uint64"] = 4;
+sizeof["int8"] = 4; sizeof["int16"] = 2; sizeof["int32"] = 4; sizeof["int"] = 4; sizeof["int64"] = 4;
+sizeof["float32"] = 4; sizeof["float64"] = 4;
+sizeof["byte"] = 4; sizeof["bool"] = 4; sizeof["string"] = 4; sizeof["file"] = 4
 temp_array = [] #used to store the temporary varibles used to define an array
 
 #-------------------------LIBC stuff-----------------------------------------
@@ -129,6 +129,11 @@ def find_info(ident, line, scope = None):
             return scopes[scope].get_info(ident)
     raise NameError(str(line) + ": Identifier " + ident + " is not in any scope")
 
+def backpatch(code, list, label):
+    for i, j in enumerate(code):
+        if type(j[-1]) == str and len(j[-1]) >= 4 and j[-1][:4] == "temp" and j[-2] == "goto" and j[-1] in list:
+            code[i][-1] = label
+    return code
 
 def mytuple(arr):
     return tuple(arr)
@@ -247,14 +252,20 @@ def p_add_scope(p):
         scopes[current_scope].insert("__EndFuncLabel", end_func_label, "value")
         p[0].code += [["label", func_label], ["func_begin", p[-1]]]
 
+    elif p[-1] == "else":
+        p[0] = Node()
+        temp_label = new_label()
+        p[0].extra["ElseLabel"] = temp_label
+        p[0].code += [["label", temp_label]]
+
     elif p[-2] == "if":
         p[0] = Node()
         temp_label = new_label()
-        else_label = "_else_" + temp_label
         end_if_label = "_end_if_" + temp_label
-        scopes[current_scope].insert("__Else", else_label, "value")
         scopes[current_scope].insert("__EndIf", end_if_label, "value")
-        p[0].code += [["if not", p[-1].place_list[0], "then goto", else_label]]
+        p[0].extra["IfLabel"] = temp_label
+        p[0].extra["EndIfLabel"] = end_if_label
+        p[0].code += [["label", temp_label]]
 
     elif p[-2] == "switch":
         temp_label = new_label()
@@ -278,15 +289,12 @@ def p_end_scope(p):
     elif p[-4] == "func":
         p[0] = Node()
         end_func_label = find_info("__EndFuncLabel", p.lexer.lineno, current_scope)["value"]
-        p[0].code += [["func_end"]]
+        p[0].code += [["func_end", end_func_label]]
 
     elif p[-4] == "if":
         p[0] = Node()
-        else_label = find_info("__Else", p.lexer.lineno, current_scope)["value"]
         end_if_label = find_info("__EndIf", p.lexer.lineno, current_scope)["value"]
         p[0].code += [["goto", end_if_label]]
-        p[0].code += [["label", else_label]]
-        p[0].extra["EndIfLabel"] = end_if_label
 
     elif p[-6] == "switch":
         p[0] = Node()
@@ -891,9 +899,15 @@ def p_basic_lit(p):
         temp_v = new_temp()
         p[0] = Node()
         p[0].place_list = [temp_v]
-        p[0].code = [["=", temp_v, p[1]]]
+        p[0].code = [["=", temp_v, p[1]], ["goto", temp_v]]
         p[0].type_list = ["bool"]
-        p[0].extra["size"] = 1
+        p[0].extra["size"] = sizeof["bool"]
+        if p[1] == "true":
+            p[0].extra["true_list"] = [temp_v]
+            p[0].extra["false_list"] = []
+        else:
+            p[0].extra["true_list"] = []
+            p[0].extra["false_list"] = [temp_v]
     elif type(p[1]) == float:
         temp_v = new_temp()
         p[0] = Node()
@@ -1127,13 +1141,23 @@ def p_expression(p):
             p[0].place_list = [temp_v]
             if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
                 p[0].type_list = ["bool"]
+                if p[0].code[-1][-1] == True:
+                    p[0].extra["true_list"] = [temp_v]
+                else:
+                    p[0].extra["false_list"] = [temp_v]
+                p[0].code += [["goto", temp_v]]
             else:
                 p[0].type_list = ["int"]
         elif len(p[1].code) > 0 and len(p[3].code) > 0 and type(p[1].code[-1][-1]) == bool and type(p[3].code[-1][-1]) == bool:
             if p[2] == "&&" or p[2] == "||" or p[2] == "==" or p[2] == "^":
-                p[0].code = p[1].code[:-1] + p[3].code[:-1]
+                p[0].code = p[1].code[:-2] + p[3].code[:-2]
                 p[0].place_list = [temp_v]
                 p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
+                if p[0].code[-1][-1] == True:
+                    p[0].extra["true_list"] = [temp_v]
+                else:
+                    p[0].extra["false_list"] = [temp_v]
+                p[0].code += [["goto", temp_v]]
                 p[0].type_list = ["bool"]
             else:
                 raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on bool literals")
@@ -1145,16 +1169,32 @@ def p_expression(p):
                 p[0].type_list = ["float32"]
             elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
                 p[0].code += [["=", temp_v, eval(str(p[1].code[-1][-1]) + p[2] + str(p[3].code[-1][-1]))]]
+                if p[0].code[-1][-1] == True:
+                    p[0].extra["true_list"] = [temp_v]
+                else:
+                    p[0].extra["false_list"] = [temp_v]
+                p[0].code += [["goto", temp_v]]
                 p[0].type_list = ["bool"]
             else:
                 raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
         else:
-            p[0].code = p[1].code + p[3].code
+            if p[1].type_list[0] == p[3].type_list[0] and "bool" != p[1].type_list[0]:
+                p[0].code = p[1].code + p[3].code
             if p[1].type_list[0] == p[3].type_list[0]:
                 if "bool" == p[1].type_list[0]:
-                    if p[2] == "&&" or p[2] == "||" or p[2] == "==":
-                        p[0].place_list = [temp_v]
-                        p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                    if p[2] == "&&" or p[2] == "||":
+                        label_v = new_label()
+                        if p[2] == "||":
+                            p[1].code = backpatch(p[1].code, p[1].extra["false_list"], label_v)
+                            p[0].extra["true_list"] = p[1].extra["true_list"] + p[3].extra["true_list"]
+                            p[0].extra["false_list"] = p[3].extra["false_list"]
+                        else:
+                            p[1].code = backpatch(p[1].code, p[1].extra["true_list"], label_v)
+                            p[0].extra["true_list"] = p[3].extra["true_list"]
+                            p[0].extra["false_list"] = p[1].extra["false_list"] + p[3].extra["false_list"]
+                        # p[0].place_list = [temp_v]
+                        # p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                        p[0].code = p[1].code + [["label", label_v]] + p[3].code
                         p[0].type_list = [p[1].type_list[0]]
                     else:
                         raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on bool literals")
@@ -1163,32 +1203,40 @@ def p_expression(p):
                         if "u" not in p[3].type_list[0] or p[3].type_list[0] != "byte":
                             raise TypeError(str(p.lineno(2)) + ": Shift count should be unsigned integer")
                     p[0].place_list = [temp_v]
-                    p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
-                    if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                    if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==" or p[2] == "!=":
+                        temp_v1 = new_temp()
+                        p[0].code += [["if", "int_" + p[2], p[1].place_list[0], p[3].place_list[0], "goto", temp_v]]
+                        p[0].code += [["goto", temp_v1]]
+                        p[0].extra["true_list"] = [temp_v]
+                        p[0].extra["false_list"] = [temp_v1]
                         p[0].type_list = ["bool"]
                     else:
+                        p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                         p[0].type_list = [p[1].type_list[0]]
                 elif "float" in p[1].type_list[0]:
                     if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
                         p[0].place_list = [temp_v]
                         p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                         p[0].type_list = [p[1].type_list[0]]
-                    elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                    elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==" or p[2] == "!=":
                         p[0].place_list = [temp_v]
-                        p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
+                        temp_v1 = new_temp()
+                        p[0].code += [["if", "float_" + p[2], p[1].place_list[0], p[3].place_list[0], "goto", temp_v]]
+                        p[0].code += [["goto", temp_v1]]
+                        p[0].extra["true_list"] = [temp_v]
+                        p[0].extra["false_list"] = [temp_v1]
                         p[0].type_list = ["bool"]
                     else:
                         raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
             else:
                 if len(p[1].code) > 0 and type(p[1].code[-1][-1]) == int:
                     if "int" in p[3].type_list[0] or p[3].type_list[0] == "byte":
-                        print("here2.1")
                         if p[2] == "<<" or p[2] == ">>":
                             if "u" not in p[3].type_list[0] or p[3].type_list[0] != "byte":
                                 raise TypeError(str(p.lineno(2)) + ": Shift count should be unsigned integer")
                         p[0].place_list = [temp_v]
                         p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
-                        if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                        if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==" or p[2] == "!=":
                             p[0].type_list = ["bool"]
                         elif p[2] == "<<" or p[2] == ">>":
                             p[0].type_list = ["int"]
@@ -1199,7 +1247,7 @@ def p_expression(p):
                             p[0].place_list = [temp_v]
                             p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                             p[0].type_list = [p[3].type_list[0]]
-                        elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                        elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==" or p[2] == "!=":
                             p[0].place_list = [temp_v]
                             p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                             p[0].type_list = ["bool"]
@@ -1209,7 +1257,7 @@ def p_expression(p):
                     if "int" in p[1].type_list[0] or p[1].type_list[0] == "byte":
                         p[0].place_list = [temp_v]
                         p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
-                        if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                        if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==" or p[2] == "!=":
                             p[0].type_list = ["bool"]
                         else:
                             p[0].type_list = [p[1].type_list[0]]
@@ -1218,7 +1266,7 @@ def p_expression(p):
                             p[0].place_list = [temp_v]
                             p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                             p[0].type_list = [p[3].type_list[0]]
-                        elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                        elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==" or p[2] == "!=":
                             p[0].place_list = [temp_v]
                             p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                             p[0].type_list = ["bool"]
@@ -1230,7 +1278,7 @@ def p_expression(p):
                             p[0].place_list = [temp_v]
                             p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                             p[0].type_list = [p[3].type_list[0]]
-                        elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                        elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==" or p[2] == "!=":
                             p[0].place_list = [temp_v]
                             p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                             p[0].type_list = ["bool"]
@@ -1244,7 +1292,7 @@ def p_expression(p):
                                     raise TypeError(str(p.lineno(2)) + ": Shift count should be unsigned integer")
                             p[0].place_list = [temp_v]
                             p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
-                            if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                            if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==" or p[2] == "!=":
                                 p[0].type_list = ["bool"]
                             elif p[2] == "<<" or p[2] == ">>":
                                 p[0].type_list = ["int"]
@@ -1256,12 +1304,11 @@ def p_expression(p):
                         raise TypeError(str(p.lineno(2)) + ": Cannot truncate " + str(p[1].code[-1][-1]) + " to int")
                 elif len(p[3].code) > 0 and type(p[3].code[-1][-1]) == float:
                     if p[1].type_list[0] == "float64":
-                        print("here8")
                         if p[2] == "+" or p[2] == "-" or p[2] == "/" or p[2] == "*":
                             p[0].place_list = [temp_v]
                             p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                             p[0].type_list = [p[1].type_list[0]]
-                        elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                        elif p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==" or p[2] == "!=":
                             p[0].place_list = [temp_v]
                             p[0].code += [["float_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
                             p[0].type_list = ["bool"]
@@ -1272,7 +1319,7 @@ def p_expression(p):
                         if "int" in p[1].type_list[0] or p[1].type_list[0] == "byte":
                             p[0].place_list = [temp_v]
                             p[0].code += [["int_" + p[2], temp_v, p[1].place_list[0], p[3].place_list[0]]]
-                            if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==":
+                            if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==" or p[2] == "!=":
                                 p[0].type_list = ["bool"]
                             else:
                                 p[0].type_list = [p[1].type_list[0]]
@@ -1563,17 +1610,27 @@ def p_if_stmt(p):
     if p[2].type_list[0] != "bool":
         raise TypeError(str(p.lineno(2)) + ": The condition " + str(p[2]) + " is not a boolean value")
     p[0] = Node()
+    if len(p) == 6:
+        p[2].code = backpatch(p[2].code, p[2].extra["true_list"], p[3].extra["IfLabel"])
+        p[2].code = backpatch(p[2].code, p[2].extra["false_list"], p[3].extra["EndIfLabel"])
+    elif len(p) == 10:
+        p[2].code = backpatch(p[2].code, p[2].extra["true_list"], p[3].extra["IfLabel"])
+        p[2].code = backpatch(p[2].code, p[2].extra["false_list"], p[7].extra["ElseLabel"])
+    else:
+        label_v = new_label()
+        p[2].code = backpatch(p[2].code, p[2].extra["true_list"], p[3].extra["IfLabel"])
+        p[2].code = backpatch(p[2].code, p[2].extra["false_list"], label_v)
     p[0].code += p[2].code
     p[0].code += p[3].code
     p[0].code += p[4].code
     p[0].code += p[5].code
 
     if len(p) == 8:
-        p[0].code += p[7].code
+        p[0].code += [["label", label_v]] + p[7].code
     elif len(p) == 10:
         p[0].code += p[8].code
 
-    p[0].code += [["label", p[5].extra["EndIfLabel"]]]
+    p[0].code += [["label", p[3].extra["EndIfLabel"]]]
 
 def p_switch_stmt(p):
     '''switch_stmt  : expr_switch_stmt'''
@@ -1741,18 +1798,21 @@ def p_return_stmt(p):
                     | RETURN expression_list'''
     global scopes, current_scope
     p[0] = Node()
-    func_name = find_info("__FuncName", p.lexer.lineno)["value"]
+    func_name = find_info("__FuncName", p.lexer.lineno, current_scope)["value"]
+    end_func_label = find_info("__EndFuncLabel", p.lexer.lineno, current_scope)["value"]
     info = find_info(func_name, p.lexer.lineno, 0)
     scopes[0].update(func_name, True, "is_returning")
     if len(p) == 2:
-        if info["return_temp"][0] != None:
-            p[0].code += [["return", info["return_temp"][0]]]
+        if info["return_type"][0] == "void":
+            p[0].code += [["goto", end_func_label]]
+        elif info["return_temp"][0] != None:
+            p[0].code += [["return", info["return_temp"][0]], ["goto", end_func_label]]
         else:
             raise TypeError(str(p.lineno(1)) + ": Return type is not void")
     else:
         p[0].code += p[2].code[0]
         if info["return_type"][0] == p[2].type_list[0]:
-            p[0].code += [["return", p[2].place_list[0]]]
+            p[0].code += [["return", p[2].place_list[0]], ["goto", end_func_label]]
         else:
             raise TypeError(str(p.lineno(2)) + ": Return type " + str(info["return_type"][0]) + " does not match " + str(p[2].type_list[0]))
 
