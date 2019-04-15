@@ -94,7 +94,10 @@ class ASM:
             #     exit(1)
             if attr[0] == "label":
                 #TODO: do we need to write back the registers before any label
-                if "_end_if_" in attr[1]:
+                if "_end_if_" in attr[1] or "_end__for_" in attr[1]:
+                    self.write_back()
+                    self.free_regs()
+                if "_for_" in attr[1]:
                     self.write_back()
                     self.free_regs()
                 self.asm += [attr[1] + ":"]
@@ -135,7 +138,7 @@ class ASM:
                 elif attr[1] in self.st:
                     self.asm += ["movl" + str(self.st[attr[1]][2]) + "(%ebp), %eax"]
             elif attr[0] == "goto":
-                if "_end_if_" in attr[1]:
+                if "_end_if_" in attr[1] or "_for_" in attr[1]:
                     self.write_back()
                     self.free_regs()
                 self.asm += ["jmp " + attr[1]]
