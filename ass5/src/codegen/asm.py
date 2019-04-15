@@ -29,6 +29,7 @@ class ASM:
 
         #used for func calls
         self.temp_asm = []
+        self.return_temp = []
 
         self.op_map = {"int_+": "addl", "int_*": "imul", "int_-": "sub", "int_&": "and", "int_|": "or", "int_^": "xor"}
         self.rel_op = {"int_<": "jle", "int_<=": "jl", "int_==": "je", "int_!=": "jne", "int_>": "jg", "int_>=": "jge"}
@@ -40,9 +41,11 @@ class ASM:
         return self.asm
 
     def save(self, val, temp, location = None, load = False):
-        if self.eax.temp != None:
-            if self.edx.temp != None:
+        if self.eax.temp != None and self.eax.temp not in self.return_temp:
+            if self.edx.temp != None and self.edx.location != None:
                 self.asm += self.edx.wb()
+            elif self.edx.temp != None and self.edx.location == None:
+                assert (False), "Should not be here!"
             self.edx.saver(self.eax)
             self.asm += ["movl %eax, %edx"]
         self.eax.free()
@@ -80,7 +83,7 @@ class ASM:
         while i < len(self.tac) - 1:
             i += 1
             attr = self.tac[i]
-            print(attr)
+            # print(attr)
             if attr[0] == "label":
                 #TODO: do we need to write back the registers before any label
                 if "_end_if_" in attr[1]:
@@ -130,10 +133,9 @@ class ASM:
                 self.asm += ["jmp " + attr[1]]
             elif attr[0] == "push_begin":
                 self.write_back()
-                print(self.edx.temp, self.edx.location)
                 if self.edx.temp != None and self.edx.location == None:
                     assert (False), "Should not be here"
-                if self.eax.temp != None and self.eax.location == None:
+                if self.eax.temp != None and self.eax.location == None and self.eax.temp not in self.return_temp:
                     #should be freed after using them
                     self.asm += ["push %eax"]
                     self.temp_asm = [("pop %edx", self.eax.temp)]
@@ -180,6 +182,7 @@ class ASM:
                     assert (False), "Should not be here!"
 
                 if self.tac[i][0] == "=" and self.tac[i][2] == "return_value":
+                    self.return_temp += [self.tac[i][1]]
                     if self.tac[i][1] in self.st:
                          self.eax.save(self.tac[i][1], str(self.st[self.tac[i][1]][2]) + "(%ebp)")
                     else:
@@ -217,6 +220,8 @@ class ASM:
                         if attr[2][0] == "'":
                             self.constants += [attr[1] + ': .string "' + attr[2][1:-1] + '"']
                             self.temp_dict[attr[1]] = "$" + attr[1]
+                        elif attr[2] == "True" or attr[2] == "False":
+                            print("Ignoring bool for now")
                         else:
                             self.temp_dict[attr[1]] = "$" + attr[2]
                 else:
@@ -353,3 +358,4 @@ class ASM:
                 self.free_regs()
             else:
                 assert (False), "Instruction not supported yet"
+            print(attr, "eax", self.eax.temp, self.eax.location, "edx", self.edx.temp, self.edx.location)

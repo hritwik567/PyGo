@@ -899,13 +899,14 @@ def p_basic_lit(p):
         temp_v = new_temp()
         p[0] = Node()
         p[0].place_list = [temp_v]
-        p[0].code = [["=", temp_v, p[1]], ["goto", temp_v]]
         p[0].type_list = ["bool"]
         p[0].extra["size"] = sizeof["bool"]
         if p[1] == "true":
+            p[0].code = [["=", temp_v, True], ["goto", temp_v]]
             p[0].extra["true_list"] = [temp_v]
             p[0].extra["false_list"] = []
         else:
+            p[0].code = [["=", temp_v, False], ["goto", temp_v]]
             p[0].extra["true_list"] = []
             p[0].extra["false_list"] = [temp_v]
     elif type(p[1]) == float:
@@ -1148,7 +1149,7 @@ def p_expression(p):
                 p[0].code += [["goto", temp_v]]
             else:
                 p[0].type_list = ["int"]
-        elif len(p[1].code) > 0 and len(p[3].code) > 0 and type(p[1].code[-1][-1]) == bool and type(p[3].code[-1][-1]) == bool:
+        elif len(p[1].code) > 1 and len(p[3].code) > 1 and type(p[1].code[-2][-1]) == bool and type(p[3].code[-2][-1]) == bool:
             if p[2] == "&&" or p[2] == "||" or p[2] == "==" or p[2] == "^":
                 p[0].code = p[1].code[:-2] + p[3].code[:-2]
                 p[0].place_list = [temp_v]
@@ -1628,6 +1629,7 @@ def p_if_stmt(p):
     if len(p) == 8:
         p[0].code += [["label", label_v]] + p[7].code
     elif len(p) == 10:
+        p[0].code += p[7].code
         p[0].code += p[8].code
 
     p[0].code += [["label", p[3].extra["EndIfLabel"]]]
@@ -1749,9 +1751,12 @@ def p_for_clause(p):
 
     p[0].code += p[-1].code
     if not p[3].code == []:
-        p[0].code += p[3].code
         end_for_label = find_info("__EndFor", p.lineno(0))["value"]
-        p[0].code += [["if not", p[3].place_list[0], "then goto", end_for_label]]
+        label_v = new_label()
+        p[3].code = backpatch(p[3].code, p[3].extra["false_list"], end_for_label)
+        p[3].code = backpatch(p[3].code, p[3].extra["true_list"], label_v)
+        p[0].code += p[3].code + [["label", label_v]]
+        # p[0].code += [["if not", p[3].place_list[0], "then goto", end_for_label]]
 
     if not p[5].code == []:
         mid_for_label = "_mid_" + find_info("__BeginFor", p.lineno(0))["value"]
@@ -1776,9 +1781,11 @@ def p_condition(p):
     if p[-2] == 'for':
         p[0] = Node()
         p[0].code += p[-1].code
-        p[0].code += p[1].code
         end_for_label = find_info("__EndFor", p.lineno(0))["value"]
-        p[0].code += [["if not", p[1].place_list[0], "then goto", end_for_label]]
+        label_v = new_label()
+        p[1].code = backpatch(p[1].code, p[1].extra["false_list"], end_for_label)
+        p[1].code = backpatch(p[1].code, p[1].extra["true_list"], label_v)
+        p[0].code += p[1].code + [["label", label_v]]
     else:
         p[0] = p[1]
 
@@ -1798,8 +1805,8 @@ def p_return_stmt(p):
                     | RETURN expression_list'''
     global scopes, current_scope
     p[0] = Node()
-    func_name = find_info("__FuncName", p.lexer.lineno, current_scope)["value"]
-    end_func_label = find_info("__EndFuncLabel", p.lexer.lineno, current_scope)["value"]
+    func_name = find_info("__FuncName", p.lexer.lineno)["value"]
+    end_func_label = find_info("__EndFuncLabel", p.lexer.lineno)["value"]
     info = find_info(func_name, p.lexer.lineno, 0)
     scopes[0].update(func_name, True, "is_returning")
     if len(p) == 2:
