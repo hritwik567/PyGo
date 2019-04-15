@@ -1,29 +1,31 @@
 package main
 
-func is_even(num int) bool {
+func is_odd(num int) int
+
+func is_even(num int) int {
   if num == 0 {
-    return true
+    return 1
   }
   return is_odd(num-1)
 }
 
-func is_odd(num int) bool {
+func is_odd(num int) int {
   if num == 0 {
-    return false
+    return 0
   }
   return is_even(num-1)
 }
 
 func main() {
-  var val int
+  var val int;
   printf("Give a positive integer: ")
   scanf("%d", &val)
 
   result := is_even(val)
-  switch result {
-    case false:
-      printf("%d is odd", result)
-    default:
-      printf("%d is even", result)
+  if result == 1 {
+      printf("%d is even\n", val)
+  } else {
+      printf("%d is odd\n", val)
   }
+  printf("Hritvik Done\n")
 }

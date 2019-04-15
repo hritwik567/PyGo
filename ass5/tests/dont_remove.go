@@ -37,10 +37,10 @@ type List struct {
 	right *type List
 }
 
-func foo(a type List) int {
-	c := a.val
-	return c
-}
+// func foo(a type List) int {
+// 	c := a.val
+// 	return c
+// }
 
 func main() {
 	// var a float32 = 2
@@ -49,7 +49,8 @@ func main() {
 	// head.left = nil
 	// head.right = nil
 	// b := foo(head)
-	// var b = 2
+	var b = 2
+	var c = 3
 	// var l *int
 	// l = &b;
 	// *l = 2
@@ -58,8 +59,10 @@ func main() {
 
 	// var a = fopen("abc", "w+")
 	// fprintf(a, "Hritvik taneja\n")
-	// scanf("%d", &b)
-	// printf("Hritvik, taneja %d\n", b)
+	scanf("%d", &b)
+	scanf("%d", &c)
+	printf("Hritvik, taneja %d\n", b)
+	printf("Hritvik, taneja %d\n", c)
 
 	//
 	// {
@@ -101,21 +104,21 @@ func main() {
 	// 	break
 	// }
 	// var t = true
-	var a = 4
-	var b = 5
-	var x = 2
-
-	if a < b || a == 4 {
-		printf("here1\n")
-		x = 3
-	} else if true {
-		printf("here2\n")
-			x = 5
-	} else {
-		printf("here3\n")
-			x = 4
-	}
-	printf("%d\n", x)
+	// var a = 4
+	// var b = 5
+	// var x = 2
+	//
+	// if a < b || a == 4 {
+	// 	printf("here1\n")
+	// 	x = 3
+	// } else if true {
+	// 	printf("here2\n")
+	// 		x = 5
+	// } else {
+	// 	printf("here3\n")
+	// 		x = 4
+	// }
+	// printf("%d\n", x)
 
 
 }

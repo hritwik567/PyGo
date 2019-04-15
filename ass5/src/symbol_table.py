@@ -33,3 +33,6 @@ class SymbolTable():
 
     def add_extra(self, value, key):
         self.extra[key] = value
+
+    def get_extra(self, key):
+        return self.extra.get(key)

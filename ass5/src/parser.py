@@ -1904,25 +1904,6 @@ f.close()
 # sys.tracebacklimit = 0
 output = parser.parse(data, tracking=True)
 
-for scope in scopes[1:]:
-    sump = 8
-    if scope.parent == 0:
-        sumv = 0
-    else:
-        sumv = scopes[scope.parent].table.get("__offset")
-        sumv = 0 if sumv == None else sumv["value"]
-    for key in scope.table:
-        if "is_var" in scope.table[key]:
-            if "is_param" in scope.table[key]:
-                scope.table[key]["offset"] = sump
-                sump = sump + scope.table[key]["size"]
-            else:
-                sumv = sumv - scope.table[key]["size"]
-                scope.table[key]["offset"] = sumv
-    if scope.parent == 0:
-        scopes[0].table[scope.table["__FuncName"]["value"]]["offset"] = sumv
-    else:
-        scopes[scope.parent].table["__offset"] = {"value": sumv}
 
 f = open(args.out[:-3] + ".symtab", "w")
 pp = pprint.PrettyPrinter(indent=3, stream=f)
@@ -1934,12 +1915,33 @@ for i, scope in enumerate(scopes):
     f.write("\n")
 f.close()
 
+SUMV = dict()
+deep_scope_dict = dict()
+for i, scope in list(enumerate(scopes))[1:]:
+    sump = 8
+    if scope.parent == 0:
+        sumv = 0
+    else:
+        sumv = SUMV[deep_scope_dict[scope.parent]]
+    for key in scope.table:
+        if "is_var" in scope.table[key]:
+            if "is_param" in scope.table[key]:
+                scope.table[key]["offset"] = sump
+                sump = sump + scope.table[key]["size"]
+            else:
+                sumv = sumv - scope.table[key]["size"]
+                scope.table[key]["offset"] = sumv
+        if scope.parent == 0:
+            deep_scope_dict[i] = i
+        else:
+            deep_scope_dict[i] = deep_scope_dict[scope.parent]
+        SUMV[deep_scope_dict[i]] = sumv
 
 f = open(args.out[:-3] + ".csymt", "w")
 csvwriter = csv.writer(f, delimiter=',')
-for key in scopes[0].table:
-    if scopes[0].table[key]["type"] == "function":
-        csvwriter.writerow([key, "function", 0, scopes[0].table[key]["offset"]])
+for i, scope in list(enumerate(scopes))[1:]:
+    if "__FuncName" in scope.table:
+        csvwriter.writerow([scope.table["__FuncName"]["value"], "function", 0, SUMV[i]])
 for scope in scopes[1:]:
     for key in scope.table:
         if "is_var" in scope.table[key]:

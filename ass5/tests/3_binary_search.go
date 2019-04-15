@@ -38,10 +38,9 @@ func main() {
 
   result := binarySearch(values, 0, size-1, key)
 
-  switch result {
-    case -1:
+  if result == -1 {
       printf("Element is not present in array")
-    default:
+  } else {
       printf("Element is present at index %d", result)
   }
 }

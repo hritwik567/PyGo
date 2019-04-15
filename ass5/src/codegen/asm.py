@@ -32,7 +32,7 @@ class ASM:
         self.return_temp = []
 
         self.op_map = {"int_+": "addl", "int_*": "imul", "int_-": "sub", "int_&": "and", "int_|": "or", "int_^": "xor"}
-        self.rel_op = {"int_<": "jle", "int_<=": "jl", "int_==": "je", "int_!=": "jne", "int_>": "jg", "int_>=": "jge"}
+        self.rel_op = {"int_<": "jl", "int_<=": "jle", "int_==": "je", "int_!=": "jne", "int_>": "jg", "int_>=": "jge"}
 
     def generate(self):
         self.asm += ["main:", "call _func_main", "push $0", "call exit", ""]
@@ -44,6 +44,12 @@ class ASM:
         if self.eax.temp != None and self.eax.temp not in self.return_temp:
             if self.edx.temp != None and self.edx.location != None:
                 self.asm += self.edx.wb()
+            elif self.edx.temp != None and self.edx.location == None and load == True:
+                if self.edi.temp == None and self.edi.location == None:
+                    self.edi.saver(self.edx)
+                    self.asm += ["movl %edx, %edi"]
+                else:
+                    assert (False), "Should not be here!"
             elif self.edx.temp != None and self.edx.location == None:
                 assert (False), "Should not be here!"
             self.edx.saver(self.eax)
@@ -83,7 +89,9 @@ class ASM:
         while i < len(self.tac) - 1:
             i += 1
             attr = self.tac[i]
-            # print(attr)
+            # if "movl -112(%ebp), %ebx" in self.asm:
+            #     print(attr)
+            #     exit(1)
             if attr[0] == "label":
                 #TODO: do we need to write back the registers before any label
                 if "_end_if_" in attr[1]:
@@ -120,7 +128,7 @@ class ASM:
                     assert (False), "Should not be here"
             elif attr[0] == "return": #all the returns will have an arg
                 if attr[1] in self.temp_dict:
-                    self.asm += ["movl" + self.temp_dict[attr[1]] + ", %eax"]
+                    self.asm += ["movl " + self.temp_dict[attr[1]] + ", %eax"]
                 elif attr[1] == self.eax.temp:
                     print("Return value already in eax!")
                     #TODO: do we need to free any regs here
@@ -133,7 +141,7 @@ class ASM:
                 self.asm += ["jmp " + attr[1]]
             elif attr[0] == "push_begin":
                 self.write_back()
-                if self.edx.temp != None and self.edx.location == None:
+                if self.edx.temp != None and self.edx.location == None and self.edx.temp not in self.return_temp:
                     assert (False), "Should not be here"
                 if self.eax.temp != None and self.eax.location == None and self.eax.temp not in self.return_temp:
                     #should be freed after using them
@@ -207,8 +215,11 @@ class ASM:
                 elif attr[2] in self.temp_dict:
                     self.asm += ["movl " + self.temp_dict[attr[2]] + ", (%eax)"]
                     self.eax.free()
-                elif attr[2] == "0":
-                    self.asm += ["movl $0, (%eax)"]
+                elif is_int(attr[2]):
+                    self.asm += ["movl $" + attr[2] + ", (%eax)"]
+                    self.eax.free()
+                elif attr[2] in self.st:
+                    self.asm += ["movl " + str(self.st[attr[2]][2]) + "(%ebp)" + ", %ebx", "movl %ebx, (%eax)"]
                     self.eax.free()
                 else:
                     assert (False), "Should not be here!"
@@ -245,12 +256,24 @@ class ASM:
                             self.save("$" + attr[2], attr[1], str(self.st[attr[1]][2]) + "(%ebp)")
             elif attr[0] in self.op_map:
                 self.write_back()
+                # print(attr, "eax", self.eax.temp, self.eax.location, "edx", self.edx.temp, self.edx.location)
                 if self.eax.temp != None and self.eax.location == None and self.eax.temp != attr[2] and self.eax.temp != attr[3]:
-                    if self.edx.temp != None and self.edx.location == None:
+                    if self.edx.temp != None and self.edx.location == None and self.edx.temp == attr[2]:
+                        self.asm += ["movl %eax, %ebx", "movl %edx, %eax", "movl %ebx, %edx"]
+                        self.ebx.saver(self.eax)
+                        self.eax.saver(self.edx)
+                        self.edx.saver(self.ebx)
+                    elif self.edx.temp != None and self.edx.location == None:
                         self.asm += ["movl %edx, %edi"]
                         self.edi.saver(self.edx)
-                    self.asm += ["movl %eax, %edx"]
-                    self.edx.saver(self.eax)
+                        self.asm += ["movl %eax, %edx"]
+                        self.edx.saver(self.eax)
+                    else:
+                        self.asm += ["movl %eax, %edx"]
+                        self.edx.saver(self.eax)
+
+                # print(attr, "eax", self.eax.temp, self.eax.location, "edx", self.edx.temp, self.edx.location)
+
 
                 if self.eax.temp == attr[3]:
                     self.ebx.save(attr[3]) #should add the location
@@ -260,6 +283,10 @@ class ASM:
                     self.asm += ["movl %edx, %eax"]
                     self.eax.saver(self.edx)
                     self.edx.free()
+                elif attr[2] == self.edi.temp:
+                    self.asm += ["movl %edi, %eax"]
+                    self.eax.saver(self.edi)
+                    self.edi.free()
                 elif attr[2] in self.temp_dict:
                     self.asm += ["movl " + self.temp_dict[attr[2]] + ", %eax"]
                     self.eax.free()
@@ -287,7 +314,7 @@ class ASM:
                     self.edx.free()
                 elif attr[3] in self.temp_dict:
                     if op == "imul":
-                        self.asm += ["movl " + self.temp_dict[attr[3]] + ", %ebx", "imul %ebx %eax"]
+                        self.asm += ["movl " + self.temp_dict[attr[3]] + ", %ebx", "imul %ebx, %eax"]
                     else:
                         self.asm += [op + " " + self.temp_dict[attr[3]] + ", %eax"]
                 elif attr[3] in self.st:
@@ -307,11 +334,19 @@ class ASM:
             elif attr[0] == "if" and attr[1] in self.rel_op:
                 self.write_back()
                 if self.eax.temp != None and self.eax.location == None and self.eax.temp != attr[2] and self.eax.temp != attr[3]:
-                    if self.edx.temp != None and self.edx.location == None:
+                    if self.edx.temp != None and self.edx.location == None and self.edx.temp == attr[2]:
+                        self.asm += ["movl %eax, %ebx", "movl %edx, %eax", "movl %ebx, %edx"]
+                        self.ebx.saver(self.eax)
+                        self.eax.saver(self.edx)
+                        self.edx.saver(self.ebx)
+                    elif self.edx.temp != None and self.edx.location == None:
                         self.asm += ["movl %edx, %edi"]
                         self.edi.saver(self.edx)
-                    self.asm += ["movl %eax, %edx"]
-                    self.edx.saver(self.eax)
+                        self.asm += ["movl %eax, %edx"]
+                        self.edx.saver(self.eax)
+                    else:
+                        self.asm += ["movl %eax, %edx"]
+                        self.edx.saver(self.eax)
 
                 if self.eax.temp == attr[3]:
                     self.ebx.save(attr[3]) #should add the location
@@ -321,6 +356,10 @@ class ASM:
                     self.asm += ["movl %edx, %eax"]
                     self.eax.saver(self.edx)
                     self.edx.free()
+                elif attr[2] == self.edi.temp:
+                    self.asm += ["movl %edi, %eax"]
+                    self.eax.saver(self.edi)
+                    self.edi.free()
                 elif attr[2] in self.temp_dict:
                     self.asm += ["movl " + self.temp_dict[attr[2]] + ", %eax"]
                     self.eax.free()
@@ -358,4 +397,4 @@ class ASM:
                 self.free_regs()
             else:
                 assert (False), "Instruction not supported yet"
-            print(attr, "eax", self.eax.temp, self.eax.location, "edx", self.edx.temp, self.edx.location)
+            print(i+1, attr, "eax", self.eax.temp, self.eax.location, "edx", self.edx.temp, self.edx.location, "edi", self.edi.temp, self.edi.location)

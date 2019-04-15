@@ -2,13 +2,9 @@ package main
 
 func main() {
 
-  var size int
-  printf("Till what index do you want the fibonacci series: ")
-  scanf("%d", &size)
+  var fibonacci [32]int
 
-  var fibonacci [size]int
-
-  for i := 0; i < size; i++ {
+  for i := 0; i < 32; i++ {
 
     if i == 0 || i == 1 {
       fibonacci[i] = 1
@@ -19,8 +15,9 @@ func main() {
   }
 
   printf("Fibonacci Series\n")
-  for i := 0; i < size; i++ {
-    printf("%d ")
+  for i := 0; i < 32; i++ {
+    printf("%d ", fibonacci[i])
   }
   printf("\n")
+  printf("Hritvik Done\n")
 }

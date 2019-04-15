@@ -1,20 +1,31 @@
 package main
 
-func check(val bool) bool {
-  printf("here")
-  return val
+func check() int {
+  printf("\t Check function executed\n")
+  return 1
 }
 
 func main() {
-  // should NOT print
-  a := true || check(false)
+  a := 1
 
-  // should print
-  b := false || check(true)
+  if a == 1 || check() == 1 {
+    printf("Should not execute check function\n")
+  }
 
-  // should NOT print
-  c := false && check(true)
+  if a > 1 || check() == 1 {
+    printf("Should execute check function\n")
+  }
 
-  // should print
-  d := true && check(false)
+  if a > 1 && check() == 1 {
+    printf("Should not be here\n")
+  } else {
+    printf("Should not execute check function\n")
+  }
+
+  if a == 1 && check() == 1 {
+    printf("Should execute check function\n")
+  }
+
+  printf("Hritvik done\n")
+
 }
