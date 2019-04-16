@@ -119,9 +119,24 @@ class ASM:
             elif attr[0] == "(load)":
                 if attr[2] == self.eax.temp:
                     temp_loc = str(self.st[attr[1]][2]) + "(%ebp)" if attr[1] in self.st else None
-                    self.asm += ["movl (%eax), %eax"]
-                    self.eax.free()
-                    self.eax.save(attr[1], temp_loc)
+                    if attr[1] not in self.st:
+                        self.asm += ["movl (%eax), %eax"]
+                        self.eax.free()
+                        self.eax.save(attr[1], temp_loc)
+                    elif int(self.st[attr[1]][1]) == 4:
+                        self.asm += ["movl (%eax), %eax"]
+                        self.eax.free()
+                        self.eax.save(attr[1], temp_loc)
+                    elif int(self.st[attr[1]][1]) > 4:
+                        temp_size = 0
+                        while temp_size != int(self.st[attr[1]][1]):
+                            self.asm += ["movl " + str(temp_size) + "(%eax), %ebx"]
+                            self.asm += ["movl %ebx," + str(int(self.st[attr[1]][2]) + temp_size) + "(%ebp)"]
+                            temp_size += 4
+                        self.eax.free()
+                    else:
+                        assert (False), "Should not be here"
+
                 elif attr[2] in self.st and self.eax.temp == None:
                     temp_loc = str(self.st[attr[1]][2]) + "(%ebp)" if attr[1] in self.st else None
                     if temp_loc == None and int(self.st[attr[1][1]]) > 4:
