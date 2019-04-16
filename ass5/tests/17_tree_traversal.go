@@ -67,24 +67,24 @@ func main(){
 	// printf("head left: %lx\n", head[0].l);
 	// printf("head right: %lx\n", head[0].r);
 	
-	// head = insert_node(head, 2)
-	// head = insert_node(head, 8)
-	// head = insert_node(head, 1)
+	head = insert_node(head, 2)
+	head = insert_node(head, 8)
+	head = insert_node(head, 1)
 
 
 	printf("head val: %lx\n", head[0].v);
 	printf("head left: %lx\n", head[0].l);
 	printf("head right: %lx\n", head[0].r);
 
-	var t3 type node = *head
+	var t3 type node = head[0]
 	printf("head val: %lx\n", t3.v);
 	printf("head val: %lx\n", t3.l);
 	printf("head val: %lx\n", t3.r);
-	t4 := t3.l
+	t4 := t3.r
 	 
-	// printf("head val: %lx\n", t4[0].v);
-	// printf("head left: %lx\n", t4[0].l);
-	// printf("head right: %lx\n", t4[0].r);
+	printf("head val: %lx\n", t4[0].v);
+	printf("head left: %lx\n", t4[0].l);
+	printf("head right: %lx\n", t4[0].r);
 	// 
 	// // t3 = t4[0]
 	// // printf("head val t1: %lx\n", t3.v);
@@ -101,11 +101,11 @@ func main(){
 	// printf("head left: %lx\n", head[0].l);
 	// printf("head right right: %lx\n", t1[0].v);
 
-	// lookup := search(head, 2)
-	// if lookup == nil {
-	// 	printf("Coulnd't find 5\n");
-	// } else{
-	// 	temp := *lookup
-	// 	printf("Val: \n", lookup[0].v)
-	// }
+	lookup := search(head, 2)
+	if lookup == nil {
+		printf("Coulnd't find 5\n");
+	} else{
+		temp := lookup[0]
+		printf("Val: %d\n", lookup[0].v)
+	}
 }
