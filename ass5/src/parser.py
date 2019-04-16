@@ -674,6 +674,9 @@ def p_type_def(p):
     #TODO: Hritvik changed this to struct type
     p[0] = Node()
     global scopes, current_scope
+    for i, j in enumerate(p[3].extra["fields_type"]):
+        if j == ["pointer", "type " + p[1], None]:
+            p[3].extra["fields_type"][i] = ["pointer", "type " + p[1], p[3].extra["size"]]
     scopes[current_scope].update("type " + p[1], [], "methods")
     scopes[current_scope].update("type " + p[1], p[3].extra["fields"], "fields")
     scopes[current_scope].update("type " + p[1], p[3].extra["fields_type"], "fields_type")
@@ -1083,6 +1086,7 @@ def p_primary_expr(p):
                     bypass1 = bypass or ("pointer" in j and j[:2] == info["parameter_type"][i][:2])
                     if bypass1 or (j == info["parameter_type"][i] and p[3].extra["size"][i] == info["parameter_size"][i]):
                         parameter_pushed_size += p[3].extra["size"][i]
+                        print("Wtf is this code", [k for k in p[3].code[i] if "int_*" in k])
                         p[0].code += p[3].code[i] + [["push", p[3].place_list[i], p[3].extra["size"][i]]]
                     else:
                         raise TypeError(str(p.lineno(1)) + ": Function " + str(p[1].id_list[0]) + " should not be called with type " + str(j) + " at the index " + str(i))
