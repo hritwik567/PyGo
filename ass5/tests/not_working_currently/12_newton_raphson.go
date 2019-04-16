@@ -1,16 +1,16 @@
 package main
 
-EPSILON := 0.001
+var EPSILON = 0.001
 
 func abs(val float32) float32 {
   if val < 0 {
-    return -1 * val
+    return -1.0 * val
   }
   return val
 }
 
 func Func(val float32) float32 {
-  result := val*val*val - val*val + 2
+  result := val*val*val - val*val + 2.0
   return result
 }
 
@@ -36,6 +36,6 @@ func main() {
 
   val := 20.0
   root := newtonRaphson(val)
-  printf("The root is: %d\n", root)
+  //printf("The root is: %d\n", root)
 
 }
