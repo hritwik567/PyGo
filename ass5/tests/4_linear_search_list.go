@@ -29,7 +29,7 @@ func main() {
 			break
 		}
     temp := *head
-		if temp.a == 3 {
+		if temp.a == 12 {
 			found = 1
 			break
 		}
