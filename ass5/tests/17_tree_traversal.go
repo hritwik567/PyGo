@@ -14,6 +14,22 @@ func new_node(val int) *type node {
 	return newnode
 }
 
+// func inorder(root *type node) void;
+
+func inorder(root *type node) int {
+	if root == nil {
+		return 0
+	}
+
+	retval := inorder(root[0].l)
+
+	printf("%d, ", root[0].v)
+	
+	retval = inorder(root[0].r)
+
+	return 0
+}
+
 func insert_node(head *type node, val int) *type node {
 	
 	// printf("Insert node\n")
@@ -43,18 +59,15 @@ func search(root *type node, key int) *type node {
 		return root
 	}
 
-	printf("Encountered %d\n", root[0].v);
 	if root[0].v == key {
 		return root
 	}
 
 	if root[0].v < key {
-		printf("Going Right\n");
 		return search(root[0].r, key)
 	}
 
 	if root[0].v > key {
-		printf("Going Left\n");
 		return search(root[0].l, key)
 	}
 }
@@ -62,50 +75,19 @@ func search(root *type node, key int) *type node {
 func main(){
 	head := new_node(3)
 	head = insert_node(head, 5)
-	// printf("head: %lx\n", head);
-	// printf("head val: %lx\n", head[0].v);
-	// printf("head left: %lx\n", head[0].l);
-	// printf("head right: %lx\n", head[0].r);
-	
 	head = insert_node(head, 2)
 	head = insert_node(head, 8)
 	head = insert_node(head, 1)
+	head = insert_node(head, 22)
+	head = insert_node(head, 23)
+	head = insert_node(head, 84)
+	head = insert_node(head, 12)
+	head = insert_node(head, 85)
+	head = insert_node(head, 13)
 
 
-	printf("head val: %lx\n", head[0].v);
-	printf("head left: %lx\n", head[0].l);
-	printf("head right: %lx\n", head[0].r);
 
-	var t3 type node = head[0]
-	printf("head val: %lx\n", t3.v);
-	printf("head val: %lx\n", t3.l);
-	printf("head val: %lx\n", t3.r);
-	t4 := t3.r
-	 
-	printf("head val: %lx\n", t4[0].v);
-	printf("head left: %lx\n", t4[0].l);
-	printf("head right: %lx\n", t4[0].r);
-	// 
-	// // t3 = t4[0]
-	// // printf("head val t1: %lx\n", t3.v);
-	// 
-	
-	
-	// printf("head val: %lx\n", head[0].v);
-	// printf("head left: %lx\n", head[0].l);
-	// printf("head right: %lx\n", head[0].r);
-
-	// t1 := head[0].r
-	// printf("head: %lx\n", head);
-	// printf("head val: %lx\n", head[0].v);
-	// printf("head left: %lx\n", head[0].l);
-	// printf("head right right: %lx\n", t1[0].v);
-
-	lookup := search(head, 2)
-	if lookup == nil {
-		printf("Coulnd't find 5\n");
-	} else{
-		temp := lookup[0]
-		printf("Val: %d\n", lookup[0].v)
-	}
+	printf("Inorder Traversal\n")
+	inorder(head)
+	printf("\n")
 }
