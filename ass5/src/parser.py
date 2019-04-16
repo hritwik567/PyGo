@@ -1026,6 +1026,7 @@ def p_primary_expr(p):
             p[0].code += [["int_+", temp_v1, temp_v, sum(info1["fields_size"][:info1["fields"].index(p[3])])]]
             p[0].place_list = [temp_v1]
             p[0].extra["size"] = 4
+            p[0].extra["it_is_a_pointer"] = True
         # elif p[3] in info1["methods"]:
         else:
             raise NameError(str(p.lineno(3)) + ": No field or method " + str(p[3]) + " defined in " + str(info1["type"]))
@@ -1063,7 +1064,7 @@ def p_primary_expr(p):
         p[0].code += [["int_*", temp_v1, p[3].place_list[0], p[0].type_list[0][2]], ["int_+", temp_v2, temp_v, temp_v1]]
         p[0].place_list = [temp_v2]
         p[0].extra["size"] = 4
-        print(p[0].type_list)
+        p[0].extra["it_is_a_pointer"] = True
     #TODO: Hritvik not implementing slice for now
     # elif len(p) == 3:
     #     if p[1].id_list[0] == "identifier":
@@ -1079,7 +1080,8 @@ def p_primary_expr(p):
                 p[0].code += [["push_begin"]]
                 parameter_pushed_size = 0
                 for i, j in reversed(list(enumerate(p[3].type_list))):
-                    if bypass or (j == info["parameter_type"][i] and p[3].extra["size"][i] == info["parameter_size"][i]):
+                    bypass1 = bypass or ("pointer" in j and j[:2] == info["parameter_type"][i][:2])
+                    if bypass1 or (j == info["parameter_type"][i] and p[3].extra["size"][i] == info["parameter_size"][i]):
                         parameter_pushed_size += p[3].extra["size"][i]
                         p[0].code += p[3].code[i] + [["push", p[3].place_list[i], p[3].extra["size"][i]]]
                     else:
@@ -1368,7 +1370,7 @@ def p_unary_expr(p):
                 p[0].extra["size"] = info["size"]
             else:
                 raise NameError(str(p.lineno(1)) + ": Variable " + str(p[0].id_list[0]) + " not defined")
-        elif "pointer" in p[0].type_list[0] and p[0].type_list[0][2] != 0 and p[0].type_list[0][2] != None:
+        elif p[0].extra.get("it_is_a_pointer"):
             temp_v = new_temp()
             p[0].code += [["(load)", temp_v, p[0].place_list[0]]]
             #Hritvik these 2 statemnts should be written in the following order
@@ -1407,7 +1409,7 @@ def p_unary_expr(p):
                 raise TypeError(str(p.lineno(1)) + ": Type Mismatch with unary operator" + str(p[1]))
 
         if p[1] == "*":
-            print(p[2].type_list)
+            print("in_star", p[2].type_list)
             if p[2].type_list[0][0] == "pointer":
                 p[0] = p[2]
                 temp_v = new_temp()

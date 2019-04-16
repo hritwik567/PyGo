@@ -149,7 +149,7 @@ class ASM:
                     print("Return value already in eax!")
                     #TODO: do we need to free any regs here
                 elif attr[1] in self.st:
-                    self.asm += ["movl" + str(self.st[attr[1]][2]) + "(%ebp), %eax"]
+                    self.asm += ["movl " + str(self.st[attr[1]][2]) + "(%ebp), %eax"]
             elif attr[0] == "goto":
                 if "_end_if_" in attr[1] or "_for_" in attr[1]:
                     self.write_back()

@@ -16,15 +16,15 @@ func new_node(val int) *type node {
 
 func insert_node(head *type node, val int) *type node {
 
-	if(head == nil) {
+	if head == nil {
 		return new_node(val)
 	}
 
 	temp := *head
 
-	if(val < temp.v){
+	if val < temp.v {
 		temp.l = insert_node(temp.l, val)
-	} else if(val){
+	} else if val > temp.v {
 		temp.r = insert_node(temp.r, val)
 	}
 
@@ -32,23 +32,23 @@ func insert_node(head *type node, val int) *type node {
 	return head;
 }
 
-func search(root *type node, key int){
-	if(root == nil){
+func search(root *type node, key int) *type node {
+	if root == nil {
 		return root
 	}
 
-	temp := *head
+	temp := *root
 	printf("Encountered %d\n", temp.v);
-	if(temp.v == key){
+	if temp.v == key {
 		return root
 	}
 
-	if(temp.v < key){
+	if temp.v < key {
 		printf("Going Right\n");
 		return search(temp.r, key)
 	}
 
-	if(temp.v > key){
+	if temp.v > key {
 		printf("Going Left\n");
 		return search(temp.l, key)
 	}
@@ -62,7 +62,7 @@ func main(){
 	head = insert_node(head, 1)
 
 	lookup := search(head, 5)
-	if(lookup == nil){
+	if lookup == nil {
 		printf("Coulnd't find 5\n");
 	} else{
 		temp := *lookup
