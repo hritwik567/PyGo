@@ -1012,6 +1012,7 @@ def p_primary_expr(p):
             if info["is_var"]:
                 temp_v = new_temp()
                 p[0].code += [["(addr)", temp_v, info["temp"]]]
+                print("in p_exp", p[3],info["type"])
                 info1 = find_info(info["type"], p.lineno(1), 0)
             else:
                 raise NameError(str(p.lineno(1)) + ": Variable " + str(p[0].id_list[0]) + " not defined")
@@ -1238,7 +1239,18 @@ def p_expression(p):
                     else:
                         raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on float literals")
             else:
-                if len(p[1].code) > 0 and type(p[1].code[-1][-1]) == int:
+                if "pointer" in p[1].type_list[0] and "pointer" in p[3].type_list[0]:
+                    if p[2] == "==" or p[2] == "!=":
+                        p[0].place_list = [temp_v]
+                        temp_v1 = new_temp()
+                        p[0].code += [["if", "int_" + p[2], p[1].place_list[0], p[3].place_list[0], "goto", temp_v]]
+                        p[0].code += [["goto", temp_v1]]
+                        p[0].extra["true_list"] = [temp_v]
+                        p[0].extra["false_list"] = [temp_v1]
+                        p[0].type_list = ["bool"]
+                    else:
+                        raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on pointers")
+                elif len(p[1].code) > 0 and type(p[1].code[-1][-1]) == int:
                     if "int" in p[3].type_list[0] or p[3].type_list[0] == "byte":
                         if p[2] == "<<" or p[2] == ">>":
                             if "u" not in p[3].type_list[0] or p[3].type_list[0] != "byte":
