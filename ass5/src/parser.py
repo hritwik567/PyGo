@@ -1201,7 +1201,7 @@ def p_expression(p):
                         raise TypeError(str(p.lineno(2)) + ": Cannot do operation " + str(p[2]) + " on bool literals")
                 elif "int" in p[1].type_list[0] or "byte" == p[1].type_list[0]:
                     if p[2] == "<<" or p[2] == ">>":
-                        if "u" not in p[3].type_list[0] or p[3].type_list[0] != "byte":
+                        if int(p[3].code[-1][-1]) != p[3].code[-1][-1] and ("u" not in p[3].type_list[0] or p[3].type_list[0] != "byte"):
                             raise TypeError(str(p.lineno(2)) + ": Shift count should be unsigned integer")
                     p[0].place_list = [temp_v]
                     if p[2] == "<" or p[2] == ">" or p[2] == "<=" or p[2] == ">=" or p[2] == "==" or p[2] == "!=":

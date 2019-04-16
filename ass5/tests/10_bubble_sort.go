@@ -1,40 +1,26 @@
 package main
 
-func swap(values []int, a,b int) {
-  t := values[a]
-  values[a] = values[b]
-  values[b] = t
-}
-
-func bubbleSort(values []int, size int) {
-
-  for i := 0; i < size-1; i++ {
-    for j := 0; j < size-i-1; j++ {
-      swap(values, i, j)
-    }
-  }
-
-}
-
 func main() {
+	var b [10]int
+	for i := 0; i < 10; i++ {
+		d := 0
+		scanf("%d", &d)
+		b[i] = d
+	}
 
-  var size int
-  printf("Give me the size of the array: ")
-  scanf("%d", &size)
+	for i := 0; i < 9; i++ {
+		for j := 0; j < 9; j++ {
+			if b[j] > b[j+1] {
+				c := b[j]
+				b[j] = b[j+1]
+				b[j+1] = c
+			}
+		}
+	}
 
-  var values [size]int
-  for i := 0; i < size; i++ {
-    var num int
-    scanf("%d", &num)
-    values[i] = num
+  for i := 0; i < 10; i++ {
+	   printf("%d ", b[i])
   }
-
-  bubbleSort(values, size)
-
-  printf("Sorted Array \n")
-  for i := 0; i < size; i++ {
-    printf("%d ", values[i])
-  }
-  printf("\n")
-
+	printf("\n")
+  printf("Hritvik Done\n")
 }

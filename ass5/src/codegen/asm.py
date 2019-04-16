@@ -31,7 +31,7 @@ class ASM:
         self.temp_asm = []
         self.return_temp = []
 
-        self.op_map = {"int_+": "addl", "int_*": "imul", "int_-": "sub", "int_&": "and", "int_|": "or", "int_^": "xor"}
+        self.op_map = {"int_+": "addl", "int_*": "imul", "int_-": "sub", "int_&": "and", "int_|": "or", "int_^": "xor", "int_>>": "shr"}
         self.rel_op = {"int_<": "jl", "int_<=": "jle", "int_==": "je", "int_!=": "jne", "int_>": "jg", "int_>=": "jge"}
 
     def generate(self):
