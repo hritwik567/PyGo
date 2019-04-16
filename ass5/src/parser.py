@@ -1615,7 +1615,7 @@ def p_assignment(p):
             else:
                 p[0].code += p[3].code[i] + p[1].code[i] + [["=", expr_place_list_key[i], expr_place_list_val[i]]]
         elif "pointer" in expr_type_list_key[i] and "pointer" in expr_type_list_val[i]:
-            if expr_type_list_val[i] == ["pointer", None, 0] or expr_type_list_key[i][:2] == expr_type_list_val[i][:2]:
+            if expr_type_list_val[i] == ["pointer", None, 0] or expr_type_list_val[i] == ["pointer", None, None] or expr_type_list_key[i][:2] == expr_type_list_val[i][:2]:
                 if len(p[1].code[i]) > 0 and p[1].code[i][-1][0] == "(load)" and p[1].code[i][-1][1] == expr_place_list_key[i]:
                     p[0].code += p[3].code[i] + p[1].code[i][:-1] + [["(store)", p[1].code[i][-1][2], expr_place_list_val[i]]]
                 else:

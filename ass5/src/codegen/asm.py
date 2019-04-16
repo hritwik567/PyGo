@@ -41,7 +41,7 @@ class ASM:
         return self.asm
 
     def save(self, val, temp, location = None, load = False):
-        if self.eax.temp != None and self.eax.temp not in self.return_temp:
+        if self.eax.temp != None:
             if self.edx.temp != None and self.edx.location != None:
                 self.asm += self.edx.wb()
             elif self.edx.temp != None and self.edx.location == None and load == True:
@@ -50,7 +50,7 @@ class ASM:
                     self.asm += ["movl %edx, %edi"]
                 else:
                     assert (False), "Should not be here!"
-            elif self.edx.temp != None and self.edx.location == None:
+            elif self.edx.temp != None and self.edx.location == None and self.edx.temp not in self.return_temp:
                 assert (False), "Should not be here!"
             self.edx.saver(self.eax)
             self.asm += ["movl %eax, %edx"]
