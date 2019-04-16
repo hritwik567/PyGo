@@ -1,29 +1,27 @@
 package main
 
-func swap(values []int, a int, b int) {
-  t := values[a]
-  values[a] = values[b]
-  values[b] = t
-}
-
-func partition(values []int, low int, high int) int {
+func partition(values *int, low int, high int) int {
 
   pivot := values[high]
   i := (low - 1)
 
   for j := low; j < high; j++ {
-    if (values[j] <= pivot)
-    {
+    if (values[j] <= pivot) {
       i++
-      swap(values, i, j)
+      t := values[i]
+      values[i] = values[j]
+      values[j] = t
     }
   }
 
-  swap(values, i+1, high)
+  t := values[i+1]
+  values[i+1] = values[high]
+  values[high] = t
+
   return i+1
 }
 
-func quickSort(values []int, low int, high int) {
+func quickSort(values *int, low int, high int) {
 
   if (low < high) {
     p_index := partition(values, low, high)
@@ -36,23 +34,19 @@ func quickSort(values []int, low int, high int) {
 
 func main() {
 
-  var size int
-  printf("Give me the size of the array: ")
-  scanf("%d", &size)
-
-  var values [size]int
-  for i := 0; i < size; i++ {
-    var num int
+  var values *int = malloc(40)
+  var num int
+  for i := 0; i < 10; i++ {
     scanf("%d", &num)
     values[i] = num
   }
 
-  quickSort(values, 0, size-1)
+  quickSort(values, 0, 9)
 
   printf("Sorted Array \n")
-  for i := 0; i < size; i++ {
+  for i := 0; i < 10; i++ {
     printf("%d ", values[i])
   }
   printf("\n")
-
+  printf("Hritvik done\n")
 }

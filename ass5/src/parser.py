@@ -756,6 +756,8 @@ def p_var_spec(p):
                 if "string" in p[2].type_list[0] and "string" in expr_type_list[i]:#TODO: should make this condition a bit strong ["array", ["string"]]
                     p[2].type_list[0] = expr_type_list[i]
 
+                if ["pointer", None, None] == expr_type_list[i] and "pointer" in p[2].type_list[0]:
+                    expr_type_list[i] = p[2].type_list[0]
                 if p[2].type_list[0] == expr_type_list[i]:
                     if p[3].place_list[i] in temp_array:
                         temp_v = new_temp()
@@ -769,7 +771,7 @@ def p_var_spec(p):
                     scopes[current_scope].update(id_list[i], temp_v, "temp")
                     scopes[current_scope].update(id_list[i], True, "is_var")
                 else:
-                    raise TypeError(str(p.lineno(1)) + ": Type mismatch for identifier:" + str(id_list[i]))
+                    raise TypeError(str(p.lineno(1)) + ": Type mismatch for identifier: " + str(id_list[i]))
 def p_expr_list_assign_opt(p):
     '''expr_list_assign_opt : ASSIGN expression_list
                             | epsilon'''
@@ -1032,11 +1034,16 @@ def p_primary_expr(p):
         p[0].code += p[3].code
         if "identifier" == p[0].type_list[0]:
             info = find_info(p[0].id_list[0], p.lineno(1))
-            if info["is_var"]:
+            print(info["type"])
+            if info["is_var"] and "array" in info["type"]:
                 temp_v = new_temp()
                 p[0].code += [["(addr)", temp_v, info["temp"]]]
                 p[0].type_list = [info["type"]]
                 p[0].extra["size"] = info["size"]
+            elif info["is_var"] and "pointer" in info["type"]:
+                temp_v = info["temp"]
+                p[0].extra["size"] = info["type"][0][2]
+                p[0].type_list = [info["type"]]
             else:
                 raise NameError(str(p.lineno(1)) + ": Variable " + str(p[0].id_list[0]) + " not defined")
         elif "pointer" in p[0].type_list[0]:
@@ -1055,6 +1062,7 @@ def p_primary_expr(p):
         p[0].code += [["int_*", temp_v1, p[3].place_list[0], p[0].type_list[0][2]], ["int_+", temp_v2, temp_v, temp_v1]]
         p[0].place_list = [temp_v2]
         p[0].extra["size"] = 4
+        print(p[0].type_list)
     #TODO: Hritvik not implementing slice for now
     # elif len(p) == 3:
     #     if p[1].id_list[0] == "identifier":
@@ -1348,7 +1356,7 @@ def p_unary_expr(p):
                 p[0].extra["size"] = info["size"]
             else:
                 raise NameError(str(p.lineno(1)) + ": Variable " + str(p[0].id_list[0]) + " not defined")
-        elif "pointer" in p[0].type_list[0] and p[0].type_list[0][2] != 0:
+        elif "pointer" in p[0].type_list[0] and p[0].type_list[0][2] != 0 and p[0].type_list[0][2] != None:
             temp_v = new_temp()
             p[0].code += [["(load)", temp_v, p[0].place_list[0]]]
             #Hritvik these 2 statemnts should be written in the following order
@@ -1387,6 +1395,7 @@ def p_unary_expr(p):
                 raise TypeError(str(p.lineno(1)) + ": Type Mismatch with unary operator" + str(p[1]))
 
         if p[1] == "*":
+            print(p[2].type_list)
             if p[2].type_list[0][0] == "pointer":
                 p[0] = p[2]
                 temp_v = new_temp()
@@ -1582,6 +1591,7 @@ def p_assignment(p):
         # typecast = ("float" in expr_type_list_key[i] and "int" in expr_type_list_val[i])
         # typecast = typecast or (expr_type_list_key[i].startswith("int") and "int" in expr_type_list_val[i])
         # typecast = typecast or (expr_type_list_key[i].startswith("uint") and "uint" in expr_type_list_val[i])
+        print(expr_type_list_key[i], expr_type_list_val[i])
         if expr_type_list_key[i] == expr_type_list_val[i]:
             if len(p[1].code[i]) > 0 and p[1].code[i][-1][0] == "(load)" and p[1].code[i][-1][1] == expr_place_list_key[i]:
                 p[0].code += p[3].code[i] + p[1].code[i][:-1] + [["(store)", p[1].code[i][-1][2], expr_place_list_val[i]]]
