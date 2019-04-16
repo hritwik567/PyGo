@@ -53,6 +53,7 @@ libc_functions["fscanf"] = {"return_type" : "int", "return_size": sizeof["int"]}
 libc_functions["fopen"] = {"return_type": "file", "return_size": sizeof["file"]}
 libc_functions["fclose"] = {"return_type": "int", "return_size": sizeof["int"]}
 libc_functions["malloc"] = {"return_type": ["pointer", None, None], "return_size": 4}
+libc_functions["abs"] = {"return_type": "int", "return_size": sizeof["int"]}
 
 
 def is_number(s):
@@ -1015,7 +1016,7 @@ def p_primary_expr(p):
             if info["is_var"]:
                 temp_v = new_temp()
                 p[0].code += [["(addr)", temp_v, info["temp"]]]
-                print("in p_exp", p[3],info["type"])
+                # print("in p_exp", p[3],info["type"])
                 info1 = find_info(info["type"], p.lineno(1), 0)
             else:
                 raise NameError(str(p.lineno(1)) + ": Variable " + str(p[0].id_list[0]) + " not defined")
@@ -1039,7 +1040,7 @@ def p_primary_expr(p):
         p[0].code += p[3].code
         if "identifier" == p[0].type_list[0]:
             info = find_info(p[0].id_list[0], p.lineno(1))
-            print(info["type"])
+            # print(info["type"])
             if info["is_var"] and "array" in info["type"]:
                 temp_v = new_temp()
                 p[0].code += [["(addr)", temp_v, info["temp"]]]
@@ -1086,7 +1087,7 @@ def p_primary_expr(p):
                     bypass1 = bypass or ("pointer" in j and j[:2] == info["parameter_type"][i][:2])
                     if bypass1 or (j == info["parameter_type"][i] and p[3].extra["size"][i] == info["parameter_size"][i]):
                         parameter_pushed_size += p[3].extra["size"][i]
-                        print("Wtf is this code", [k for k in p[3].code[i] if "int_*" in k])
+                        # print("Wtf is this code", [k for k in p[3].code[i] if "int_*" in k])
                         p[0].code += p[3].code[i] + [["push", p[3].place_list[i], p[3].extra["size"][i]]]
                     else:
                         raise TypeError(str(p.lineno(1)) + ": Function " + str(p[1].id_list[0]) + " should not be called with type " + str(j) + " at the index " + str(i))
@@ -1413,7 +1414,7 @@ def p_unary_expr(p):
                 raise TypeError(str(p.lineno(1)) + ": Type Mismatch with unary operator" + str(p[1]))
 
         if p[1] == "*":
-            print("in_star", p[2].type_list)
+            # print("in_star", p[2].type_list)
             if p[2].type_list[0][0] == "pointer":
                 p[0] = p[2]
                 temp_v = new_temp()
@@ -1609,7 +1610,7 @@ def p_assignment(p):
         # typecast = ("float" in expr_type_list_key[i] and "int" in expr_type_list_val[i])
         # typecast = typecast or (expr_type_list_key[i].startswith("int") and "int" in expr_type_list_val[i])
         # typecast = typecast or (expr_type_list_key[i].startswith("uint") and "uint" in expr_type_list_val[i])
-        print(expr_type_list_key[i], expr_type_list_val[i])
+        # print(expr_type_list_key[i], expr_type_list_val[i])
         if expr_type_list_key[i] == expr_type_list_val[i]:
             if len(p[1].code[i]) > 0 and p[1].code[i][-1][0] == "(load)" and p[1].code[i][-1][1] == expr_place_list_key[i]:
                 p[0].code += p[3].code[i] + p[1].code[i][:-1] + [["(store)", p[1].code[i][-1][2], expr_place_list_val[i]]]
@@ -1845,7 +1846,7 @@ def p_return_stmt(p):
         else:
             raise TypeError(str(p.lineno(1)) + ": Return type is not void")
     else:
-        print("return_value", p[2].type_list, info["return_type"])
+        # print("return_value", p[2].type_list, info["return_type"])
         p[0].code += p[2].code[0]
         if info["return_type"][0] == p[2].type_list[0]:
             p[0].code += [["return", p[2].place_list[0]], ["goto", end_func_label]]

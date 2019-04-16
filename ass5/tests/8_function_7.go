@@ -7,5 +7,5 @@ func long_add(a,b,c,d,e,f,g,h int) int {
 func main() {
   result := long_add(1,2,3,4,5,6,7,8)
   printf("Result -> %d\n", result)
-  printf("Hritvik done\n")
+  printf("Hritvik Done\n")
 }

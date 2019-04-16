@@ -48,5 +48,5 @@ func main() {
     printf("%d ", values[i])
   }
   printf("\n")
-  printf("Hritvik done\n")
+  printf("Hritvik Done\n")
 }

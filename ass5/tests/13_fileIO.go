@@ -16,6 +16,6 @@ func main() {
 
   printf("%d\n", c)
 
-  printf("Hritvik done\n")
+  printf("Hritvik Done\n")
 
 }

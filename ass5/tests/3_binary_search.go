@@ -26,5 +26,5 @@ func main() {
 			end = m - 1
 		}
 	}
-  printf("Hritvik done\n")
+  printf("Hritvik Done\n")
 }

@@ -7,5 +7,5 @@ func main() {
 	d := -c
 	e := a - (-c) + (-(-b))
 	printf("%d %d %d %d %d\n", a, b, c, d, e)
-  printf("Hritvik done\n")
+  printf("Hritvik Done\n")
 }

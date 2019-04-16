@@ -137,7 +137,11 @@ class ASM:
                     else:
                         assert (False), "Should not be here"
 
-                elif attr[2] in self.st and self.eax.temp == None:
+                elif attr[2] in self.st:
+                    self.write_back()
+                    if self.eax.temp != None and self.eax.location == None:
+                        self.asm += ["movl %eax, %edx"]
+                        self.edx.saver(self.eax)
                     temp_loc = str(self.st[attr[1]][2]) + "(%ebp)" if attr[1] in self.st else None
                     if temp_loc == None and int(self.st[attr[1][1]]) > 4:
                         assert (False), "Should not be here"

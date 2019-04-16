@@ -28,5 +28,5 @@ func main() {
   root = node(head)
   printf("%d\n", root[0].val)
 
-  printf("Hritvik done\n")
+  printf("Hritvik Done\n")
 }

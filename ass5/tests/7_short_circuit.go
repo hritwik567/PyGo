@@ -26,6 +26,6 @@ func main() {
     printf("Should execute check function\n")
   }
 
-  printf("Hritvik done\n")
+  printf("Hritvik Done\n")
 
 }

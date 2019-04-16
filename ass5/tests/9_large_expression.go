@@ -8,5 +8,5 @@ func main() {
   e := 5
   result := a*b + c*(d + a*e)*7 + 4 - a + 72*b
   printf("Result -> %d\n", result)
-  printf("Hritvik done\n")
+  printf("Hritvik Done\n")
 }
