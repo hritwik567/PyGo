@@ -1839,6 +1839,7 @@ def p_return_stmt(p):
         else:
             raise TypeError(str(p.lineno(1)) + ": Return type is not void")
     else:
+        print("return_value", p[2].type_list, info["return_type"])
         p[0].code += p[2].code[0]
         if info["return_type"][0] == p[2].type_list[0]:
             p[0].code += [["return", p[2].place_list[0]], ["goto", end_func_label]]
