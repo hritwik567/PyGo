@@ -27,10 +27,10 @@ func insert_node(head *type node, val int) *type node {
 	printf("2\n")
 	if val < temp.v {
 		printf("3.a\n")
-		temp.l = insert_node(temp.l, val)
+		head[0].l = insert_node(temp.l, val)
 	} else if val > temp.v {
 		printf("3.b\n")
-		temp.r = insert_node(temp.r, val)
+		head[0].r = insert_node(temp.r, val)
 	}
 
 	head[0] = temp
@@ -43,20 +43,19 @@ func search(root *type node, key int) *type node {
 		return root
 	}
 
-	temp := *root
-	printf("Encountered %d\n", temp.v);
-	if temp.v == key {
+	printf("Encountered %d\n", root[0].v);
+	if root[0].v == key {
 		return root
 	}
 
-	if temp.v < key {
+	if root[0].v < key {
 		printf("Going Right\n");
-		return search(temp.r, key)
+		return search(root[0].r, key)
 	}
 
-	if temp.v > key {
+	if root[0].v > key {
 		printf("Going Left\n");
-		return search(temp.l, key)
+		return search(root[0].l, key)
 	}
 }
 
@@ -69,32 +68,41 @@ func main(){
 	printf("head right: %lx\n", head[0].r);
 	
 	head = insert_node(head, 2)
+	head = insert_node(head, 8)
+	head = insert_node(head, 1)
 
 
-	printf("head: %lx\n", head);
 	printf("head val: %lx\n", head[0].v);
 	printf("head left: %lx\n", head[0].l);
 	printf("head right: %lx\n", head[0].r);
 
-	// t1 := *head
-	// t2 := t1.l
-	// t1 = *t2
-	// printf("head val: %lx\n", t2.v);
+	t3 := head[0]
+	t4 := t3.r
+	 
+	printf("head val: %lx\n", t4[0].v);
+	// printf("head left: %lx\n", t4[0].l);
+	// printf("head right: %lx\n", t4[0].r);
+	// 
+	// // t3 = t4[0]
+	// // printf("head val t1: %lx\n", t3.v);
+	// 
 	
-	head = insert_node(head, 8)
-	head = insert_node(head, 1)
+	
+	// printf("head val: %lx\n", head[0].v);
+	// printf("head left: %lx\n", head[0].l);
+	// printf("head right: %lx\n", head[0].r);
 
-	t1 := head[0].r
+	// t1 := head[0].r
 	// printf("head: %lx\n", head);
 	// printf("head val: %lx\n", head[0].v);
 	// printf("head left: %lx\n", head[0].l);
-	printf("head right right: %lx\n", t1[0].v);
+	// printf("head right right: %lx\n", t1[0].v);
 
-	lookup := search(head, 2)
-	if lookup == nil {
-		printf("Coulnd't find 5\n");
-	} else{
-		temp := *lookup
-		printf("Val: \n", temp.v)
-	}
+	// lookup := search(head, 2)
+	// if lookup == nil {
+	// 	printf("Coulnd't find 5\n");
+	// } else{
+	// 	temp := *lookup
+	// 	printf("Val: \n", lookup[0].v)
+	// }
 }
