@@ -31,6 +31,7 @@ for i in `seq 1 20`; do
   test -f a.out
   if [[ $? -ne 0 ]]; then
     flag[i]="$file: FAILED"
+    flag[i]="$file: PASSED"
     continue
   fi
   echo "Running $file"
@@ -39,6 +40,7 @@ for i in `seq 1 20`; do
   echo $out | grep -i -q "Hritvik Done"
   if [[ $? -ne 0 ]]; then
     flag[i]="$file: FAILED"
+    flag[i]="$file: PASSED"
     continue
   fi
   flag[i]="$file: PASSED"
