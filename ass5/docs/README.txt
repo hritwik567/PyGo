@@ -2,10 +2,10 @@ Follow the following steps for running the IR Generator:
 
 -> First go to the src folder.
 
--> Run the following command to run the parser.
+-> Run the following command to run the compiler.
 
     $ ./run.sh ../tests/file.go
-    # ./a.out
+    $ ./a.out
 
 Dependencies:
     ply
